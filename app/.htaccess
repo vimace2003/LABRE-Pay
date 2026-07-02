@@ -1,0 +1,3 @@
+# A pasta app/ nunca deve ser servida pela web.
+# (Proteção de reserva caso o docroot seja apontado para a raiz do projeto.)
+Require all denied

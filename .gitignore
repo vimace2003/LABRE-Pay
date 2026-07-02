@@ -1,0 +1,15 @@
+# Configuração de ambiente (vive só no servidor / máquina local)
+app/config.php
+app/install.lock
+
+# Gerados em runtime
+app/backups/
+app/import-*.json
+
+# Estado do FTP-Deploy (fica no servidor)
+.ftp-deploy-state.json
+
+# Diversos
+.DS_Store
+Thumbs.db
+*.log

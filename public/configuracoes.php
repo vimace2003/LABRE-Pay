@@ -1,0 +1,227 @@
+<?php
+/** Configurações da entidade, valores, MercadoPago, SMTP e templates de email. */
+
+require __DIR__ . '/../app/bootstrap.php';
+require APP_DIR . '/auth.php';
+require APP_DIR . '/layout.php';
+require APP_DIR . '/mailer.php';
+
+$user = require_login();
+
+/* Campos editáveis (whitelist) */
+$campos = [
+    'entidade_nome', 'entidade_sigla', 'entidade_site', 'entidade_email_contato',
+    'anuidade_valor', 'venc_dia', 'venc_mes',
+    'multa_percent', 'juros_mes_percent',
+    'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
+    'taxa_admissao_ativa', 'taxa_admissao_valor', 'taxa_retorno_ativa', 'taxa_retorno_valor',
+    'meses_exclusao_auto', 'lembretes_ativos', 'lembrete_dias_antes', 'lembrete_dias_depois',
+    'mp_access_token', 'mp_public_key', 'mp_webhook_secret',
+    'smtp_host', 'smtp_porta', 'smtp_usuario', 'smtp_senha', 'smtp_seguranca',
+    'smtp_remetente_email', 'smtp_remetente_nome',
+    'backup_ativo', 'backup_copias',
+    'email_cobranca_assunto', 'email_cobranca_corpo',
+    'email_lembrete_assunto', 'email_lembrete_corpo',
+    'email_confirmacao_assunto', 'email_confirmacao_corpo',
+];
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+
+    if (($_POST['acao'] ?? '') === 'testar_email') {
+        $ok = mail_enviar($user['email'], $user['nome'], 'Teste de envio — ' . setting('entidade_sigla'),
+            '<p>Se você recebeu este email, o SMTP está configurado corretamente.</p>', 'teste');
+        flash_set($ok ? 'ok' : 'erro', $ok ? 'Email de teste enviado para ' . $user['email'] . (is_production() ? '' : ' (desviado para o dummy em ambiente de testes)') : 'Falha no envio — confira os dados de SMTP e o registro de emails.');
+        redirect('configuracoes.php');
+    }
+
+    $token = trim((string)($_POST['mp_access_token'] ?? ''));
+    if ($token !== '') {
+        if (is_production() && str_starts_with($token, 'TEST-')) {
+            flash_set('erro', 'Este ambiente é de PRODUÇÃO: use o access token de produção (APP_USR-…), não o de teste.');
+            redirect('configuracoes.php');
+        }
+        if (!is_production() && str_starts_with($token, 'APP_USR-')) {
+            flash_set('erro', 'Este ambiente é de TESTES: use as credenciais de teste do MercadoPago (TEST-…), nunca as de produção.');
+            redirect('configuracoes.php');
+        }
+    }
+
+    foreach ($campos as $k) {
+        if (array_key_exists($k, $_POST)) {
+            $v = trim((string)$_POST[$k]);
+            if (in_array($k, ['anuidade_valor', 'desconto_valor', 'taxa_admissao_valor', 'taxa_retorno_valor'], true)) {
+                $v = str_replace(',', '.', $v);
+            }
+            setting_save($k, $v);
+        }
+    }
+    // checkboxes desmarcados não vêm no POST
+    foreach (['desconto_ativo', 'taxa_admissao_ativa', 'taxa_retorno_ativa', 'lembretes_ativos', 'backup_ativo'] as $chk) {
+        setting_save($chk, isset($_POST[$chk]) ? '1' : '0');
+    }
+    audit('configuracoes_alteradas');
+    flash_set('ok', 'Configurações salvas.');
+    redirect('configuracoes.php');
+}
+
+function campo(string $k, string $rotulo, string $tipo = 'text', string $dica = ''): void
+{
+    echo '<label>' . e($rotulo);
+    if ($dica) echo '<span class="dica">' . e($dica) . '</span>';
+    $v = setting($k);
+    if ($tipo === 'textarea') {
+        echo '<textarea name="' . e($k) . '" rows="5">' . e($v) . '</textarea>';
+    } else {
+        echo '<input type="' . e($tipo) . '" name="' . e($k) . '" value="' . e($v) . '">';
+    }
+    echo '</label>';
+}
+
+function chk(string $k, string $rotulo): void
+{
+    $on = setting($k) === '1' ? 'checked' : '';
+    echo '<label style="flex-direction:row;align-items:center;gap:.6rem"><input type="checkbox" name="' . e($k) . '" value="1" ' . $on . ' style="width:auto;min-height:auto">' . e($rotulo) . '</label>';
+}
+
+page_header('Configurações', 'configuracoes.php', $user);
+?>
+
+<form method="post" class="form-grid">
+  <?= csrf_field() ?>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Entidade</h2>
+    <div class="linha-campos">
+      <?php campo('entidade_nome', 'Nome da entidade'); ?>
+      <?php campo('entidade_sigla', 'Sigla'); ?>
+    </div>
+    <div class="linha-campos">
+      <?php campo('entidade_site', 'Site'); ?>
+      <?php campo('entidade_email_contato', 'Email de contato', 'email'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Anuidade e vencimento</h2>
+    <div class="linha-campos">
+      <?php campo('anuidade_valor', 'Valor da anuidade (R$)'); ?>
+      <?php campo('venc_dia', 'Dia do vencimento', 'number', 'Estatuto LABRE-SC: 31'); ?>
+      <?php campo('venc_mes', 'Mês do vencimento', 'number', 'Estatuto LABRE-SC: 1 (janeiro)'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Multa e juros por atraso</h2>
+    <div class="linha-campos">
+      <?php campo('multa_percent', 'Multa (%)', 'number', 'Aplicada uma vez após o vencimento (usual: 2%)'); ?>
+      <?php campo('juros_mes_percent', 'Juros de mora (% ao mês)', 'number', 'Proporcional por dia de atraso (usual: 1%)'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Desconto por antecipação</h2>
+    <?php chk('desconto_ativo', 'Oferecer desconto para pagamento antecipado'); ?>
+    <div class="linha-campos">
+      <label>Tipo
+        <select name="desconto_tipo">
+          <option value="percent" <?= setting('desconto_tipo') === 'percent' ? 'selected' : '' ?>>Percentual (%)</option>
+          <option value="fixo" <?= setting('desconto_tipo') === 'fixo' ? 'selected' : '' ?>>Valor fixo (R$)</option>
+        </select>
+      </label>
+      <?php campo('desconto_valor', 'Desconto'); ?>
+      <?php campo('desconto_dia', 'Válido até (dia)', 'number'); ?>
+      <?php campo('desconto_mes', 'Válido até (mês)', 'number', 'Ex.: 31/12 = paga com desconto até o fim do ano anterior ao vencimento'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Taxas de admissão e retorno</h2>
+    <?php chk('taxa_admissao_ativa', 'Cobrar taxa de expediente na admissão de novos associados (Art. 29)'); ?>
+    <?php campo('taxa_admissao_valor', 'Valor da taxa de admissão (R$)'); ?>
+    <?php chk('taxa_retorno_ativa', 'Cobrar taxa de retorno na readmissão de associados desligados'); ?>
+    <?php campo('taxa_retorno_valor', 'Valor da taxa de retorno (R$)'); ?>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Lembretes e inadimplência</h2>
+    <?php chk('lembretes_ativos', 'Enviar lembretes automáticos (requer cron configurado)'); ?>
+    <div class="linha-campos">
+      <?php campo('lembrete_dias_antes', 'Lembrar quantos dias ANTES do vencimento', 'number'); ?>
+      <?php campo('lembrete_dias_depois', 'Lembrar quantos dias DEPOIS do vencimento', 'number'); ?>
+      <?php campo('meses_exclusao_auto', 'Alerta de exclusão automática após (meses)', 'number', 'Estatuto Art. 40: 3 meses'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">MercadoPago</h2>
+    <p class="texto-suave">Ambiente atual: <strong><?= is_production() ? 'PRODUÇÃO — use credenciais APP_USR-…' : 'TESTES — use credenciais TEST-…' ?></strong>.
+       Obtenha em <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener">mercadopago.com.br/developers</a>.</p>
+    <?php campo('mp_access_token', 'Access token', 'password'); ?>
+    <?php campo('mp_public_key', 'Public key'); ?>
+    <?php campo('mp_webhook_secret', 'Assinatura secreta do webhook', 'password', 'Configure o webhook no painel do MP apontando para ' . BASE_URL . '/webhook.php e cole aqui a assinatura secreta'); ?>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Envio de email (SMTP)</h2>
+    <?php if (!is_production()): ?>
+      <p class="texto-suave">Ambiente de testes: todos os emails são desviados para <strong><?= e(MAIL_OVERRIDE_TO ?: '(dummy não configurado!)') ?></strong> com assunto [TESTE].</p>
+    <?php endif; ?>
+    <div class="linha-campos">
+      <?php campo('smtp_host', 'Servidor SMTP', 'text', 'Ex.: mail.labre-sc.org.br'); ?>
+      <?php campo('smtp_porta', 'Porta', 'number', '587 (TLS) ou 465 (SSL)'); ?>
+      <label>Segurança
+        <select name="smtp_seguranca">
+          <option value="tls" <?= setting('smtp_seguranca') === 'tls' ? 'selected' : '' ?>>STARTTLS (porta 587)</option>
+          <option value="ssl" <?= setting('smtp_seguranca') === 'ssl' ? 'selected' : '' ?>>SSL (porta 465)</option>
+          <option value="nenhuma" <?= setting('smtp_seguranca') === 'nenhuma' ? 'selected' : '' ?>>Nenhuma (só testes locais)</option>
+        </select>
+      </label>
+    </div>
+    <div class="linha-campos">
+      <?php campo('smtp_usuario', 'Usuário'); ?>
+      <?php campo('smtp_senha', 'Senha', 'password'); ?>
+    </div>
+    <div class="linha-campos">
+      <?php campo('smtp_remetente_email', 'Email remetente', 'email'); ?>
+      <?php campo('smtp_remetente_nome', 'Nome do remetente'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Backup automático</h2>
+    <?php chk('backup_ativo', 'Gerar backup diário do banco pelo cron'); ?>
+    <?php campo('backup_copias', 'Quantas cópias manter', 'number'); ?>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Templates de email</h2>
+    <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{valor}}, {{valor_original}},
+       {{vencimento}}, {{entidade}}, {{sigla}}, {{botao_pagar}}, {{link_pagamento}}, {{link_comprovante}}</p>
+    <?php campo('email_cobranca_assunto', 'Cobrança — assunto'); ?>
+    <?php campo('email_cobranca_corpo', 'Cobrança — corpo (HTML)', 'textarea'); ?>
+    <?php campo('email_lembrete_assunto', 'Lembrete — assunto'); ?>
+    <?php campo('email_lembrete_corpo', 'Lembrete — corpo (HTML)', 'textarea'); ?>
+    <?php campo('email_confirmacao_assunto', 'Confirmação de pagamento — assunto'); ?>
+    <?php campo('email_confirmacao_corpo', 'Confirmação de pagamento — corpo (HTML)', 'textarea'); ?>
+  </div>
+
+  <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+    <button type="submit" class="botao botao-primario">Salvar configurações</button>
+  </div>
+</form>
+
+<form method="post" style="margin-top:1rem">
+  <?= csrf_field() ?>
+  <input type="hidden" name="acao" value="testar_email">
+  <button type="submit" class="botao">Enviar email de teste para mim</button>
+</form>
+
+<div class="cartao" style="margin-top:1rem">
+  <h2 style="margin-top:0">Informações do ambiente</h2>
+  <p>Ambiente: <strong><?= e(APP_ENV) ?></strong> · URL base: <strong><?= e(BASE_URL) ?></strong></p>
+  <p>URL do cron (se não usar CLI): <code><?= e(BASE_URL . '/cron.php?token=' . setting('cron_token')) ?></code></p>
+  <p>URL do webhook para o painel do MercadoPago: <code><?= e(BASE_URL . '/webhook.php') ?></code></p>
+</div>
+
+<?php page_footer(); ?>

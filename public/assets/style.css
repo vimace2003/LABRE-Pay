@@ -1,0 +1,249 @@
+/* LABRE-Pay — tema claro, alto contraste, mobile-first.
+   Pensado para leitura confortável por usuários de todas as idades. */
+
+:root {
+  --azul: #123a5c;
+  --azul-claro: #1d5c8f;
+  --verde: #0a7d33;
+  --amarelo: #9a6700;
+  --amarelo-fundo: #fff3cd;
+  --vermelho: #b3261e;
+  --vermelho-fundo: #fdecea;
+  --verde-fundo: #e6f4ea;
+  --fundo: #f2f4f7;
+  --cartao: #ffffff;
+  --texto: #1a2733;
+  --texto-suave: #51606e;
+  --borda: #d5dce3;
+  --foco: #1d5c8f;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 17px; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--fundo);
+  color: var(--texto);
+  line-height: 1.55;
+}
+
+a { color: var(--azul-claro); }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid var(--foco);
+  outline-offset: 2px;
+}
+
+h1 { font-size: 1.7rem; margin: 0 0 1rem; }
+h2 { font-size: 1.25rem; margin: 1.2rem 0 .6rem; }
+
+/* ---------- faixa de ambiente de testes ---------- */
+.env-banner {
+  background: repeating-linear-gradient(45deg, #ffc107, #ffc107 14px, #e0a800 14px, #e0a800 28px);
+  color: #201700;
+  text-align: center;
+  font-weight: 700;
+  padding: .45rem .8rem;
+}
+
+/* ---------- layout do painel ---------- */
+.layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  background: var(--azul);
+  color: #fff;
+  width: 250px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+
+.brand { font-size: 1.35rem; font-weight: 800; padding: 0 1.2rem .9rem; letter-spacing: .5px; }
+.brand span { color: #7fd1a2; }
+
+.sidebar nav { display: flex; flex-direction: column; }
+.sidebar nav a {
+  color: #e8eef4;
+  text-decoration: none;
+  padding: .8rem 1.2rem;
+  font-size: 1.02rem;
+  border-left: 4px solid transparent;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.sidebar nav a:hover { background: rgba(255,255,255,.09); }
+.sidebar nav a.ativo { background: rgba(255,255,255,.14); border-left-color: #7fd1a2; font-weight: 700; }
+
+.sidebar-rodape {
+  margin-top: auto;
+  padding: 1rem 1.2rem 0;
+  border-top: 1px solid rgba(255,255,255,.2);
+  display: flex;
+  justify-content: space-between;
+  gap: .6rem;
+  font-size: .95rem;
+}
+.sidebar-rodape a { color: #ffd7d2; }
+
+.conteudo {
+  flex: 1;
+  padding: 1.6rem clamp(1rem, 3vw, 3rem);
+  max-width: 1400px; /* conforto de leitura mesmo em ultrawide */
+}
+
+/* ---------- páginas públicas ---------- */
+body.publica { display: flex; flex-direction: column; min-height: 100vh; }
+.publica-caixa { width: 100%; max-width: 560px; margin: 0 auto; padding: 1.2rem; flex: 1; }
+.publica-topo { text-align: center; margin: 1.2rem 0; }
+.publica-topo .brand { color: var(--azul); font-size: 1.9rem; padding: 0; }
+.publica-topo .brand span { color: var(--verde); }
+.publica-topo p { color: var(--texto-suave); margin: .2rem 0 0; }
+.publica-rodape { text-align: center; padding: 1.2rem 0; font-size: .92rem; }
+
+/* ---------- cartões e formulários ---------- */
+.cartao {
+  background: var(--cartao);
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 1.3rem;
+  margin-bottom: 1.2rem;
+  box-shadow: 0 1px 3px rgba(16, 30, 45, .06);
+}
+
+.form-grid { display: flex; flex-direction: column; gap: .9rem; }
+.form-grid h2:first-child { margin-top: 0; }
+
+label { display: flex; flex-direction: column; gap: .3rem; font-weight: 600; }
+label .dica { font-weight: 400; color: var(--texto-suave); font-size: .9rem; }
+
+input[type="text"], input[type="email"], input[type="password"], input[type="url"],
+input[type="number"], input[type="date"], input[type="tel"], select, textarea {
+  font: inherit;
+  padding: .65rem .8rem;
+  border: 1.5px solid var(--borda);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--texto);
+  min-height: 44px;
+  width: 100%;
+}
+textarea { min-height: 90px; }
+
+.linha-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .9rem; }
+
+/* ---------- botões ---------- */
+.botao {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .4rem;
+  font: inherit;
+  font-weight: 700;
+  padding: .65rem 1.3rem;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  min-height: 44px;
+  background: #e8edf2;
+  color: var(--texto);
+}
+.botao:hover { filter: brightness(.96); }
+.botao-primario { background: var(--azul); color: #fff; }
+.botao-verde { background: var(--verde); color: #fff; }
+.botao-perigo { background: #fff; color: var(--vermelho); border-color: var(--vermelho); }
+.botao-mini { padding: .3rem .7rem; min-height: 36px; font-size: .92rem; }
+
+/* ---------- mensagens ---------- */
+.flash {
+  padding: .9rem 1.1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+  border: 1.5px solid;
+}
+.flash-ok { background: var(--verde-fundo); color: var(--verde); border-color: var(--verde); }
+.flash-erro { background: var(--vermelho-fundo); color: var(--vermelho); border-color: var(--vermelho); }
+
+/* ---------- selos de status ---------- */
+.selo {
+  display: inline-block;
+  padding: .15rem .65rem;
+  border-radius: 999px;
+  font-size: .88rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.selo-pago, .selo-adimplente, .selo-ativo { background: var(--verde-fundo); color: var(--verde); }
+.selo-pendente, .selo-sem_cobranca { background: var(--amarelo-fundo); color: var(--amarelo); }
+.selo-vencida, .selo-inadimplente, .selo-desligado { background: var(--vermelho-fundo); color: var(--vermelho); }
+.selo-cancelada, .selo-isento { background: #e8edf2; color: var(--texto-suave); }
+
+/* ---------- tabelas (viram cards no celular) ---------- */
+.tabela-envolve { overflow-x: auto; }
+table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; overflow: hidden; }
+.tabela th, .tabela td { padding: .7rem .8rem; text-align: left; border-bottom: 1px solid var(--borda); vertical-align: middle; }
+.tabela th { background: #eef2f6; font-size: .92rem; text-transform: uppercase; letter-spacing: .03em; color: var(--texto-suave); }
+.tabela tr:last-child td { border-bottom: none; }
+.tabela .acoes { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+/* ---------- cards de resumo do dashboard ---------- */
+.resumo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 1rem; margin-bottom: 1.2rem; }
+.resumo-card { background: var(--cartao); border: 1px solid var(--borda); border-radius: 10px; padding: 1rem 1.2rem; }
+.resumo-card .num { font-size: 2rem; font-weight: 800; display: block; }
+.resumo-card .rotulo { color: var(--texto-suave); font-weight: 600; }
+.resumo-card.verde .num { color: var(--verde); }
+.resumo-card.vermelho .num { color: var(--vermelho); }
+.resumo-card.amarelo .num { color: var(--amarelo); }
+
+/* ---------- barra de ferramentas de listas ---------- */
+.toolbar { display: flex; gap: .7rem; flex-wrap: wrap; align-items: end; margin-bottom: 1rem; }
+.toolbar form { display: flex; gap: .7rem; flex-wrap: wrap; align-items: end; }
+.toolbar label { min-width: 160px; }
+
+.texto-suave { color: var(--texto-suave); }
+.vazio { text-align: center; color: var(--texto-suave); padding: 2.2rem 1rem; }
+.vazio strong { display: block; font-size: 1.1rem; margin-bottom: .3rem; color: var(--texto); }
+
+.progresso { height: 14px; background: #e8edf2; border-radius: 999px; overflow: hidden; }
+.progresso > div { height: 100%; background: var(--verde); width: 0; transition: width .3s; }
+
+/* ---------- gráficos SVG ---------- */
+.grafico-caixa { overflow-x: auto; }
+.grafico-caixa svg { display: block; }
+
+/* ---------- comprovante para impressão ---------- */
+.comprovante h2 { margin-top: 0; }
+.comprovante dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.2rem; }
+.comprovante dt { font-weight: 700; color: var(--texto-suave); }
+.comprovante dd { margin: 0; }
+@media print {
+  .env-banner, .publica-rodape, .nao-imprimir { display: none !important; }
+  body { background: #fff; }
+  .cartao { border: none; box-shadow: none; }
+}
+
+/* ---------- responsivo ---------- */
+@media (max-width: 860px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; flex-direction: column; padding: .6rem 0; }
+  .sidebar nav { flex-direction: row; flex-wrap: wrap; }
+  .sidebar nav a { border-left: none; border-bottom: 3px solid transparent; padding: .55rem .8rem; }
+  .sidebar nav a.ativo { border-bottom-color: #7fd1a2; }
+  .sidebar-rodape { border-top: none; padding-top: .4rem; }
+
+  /* tabela vira cards empilhados */
+  .tabela-cards table, .tabela-cards thead, .tabela-cards tbody, .tabela-cards tr, .tabela-cards td { display: block; }
+  .tabela-cards thead { display: none; }
+  .tabela-cards tr { border: 1px solid var(--borda); border-radius: 10px; margin-bottom: .8rem; background: var(--cartao); padding: .4rem 0; }
+  .tabela-cards td { border: none; padding: .35rem .9rem; }
+  .tabela-cards td[data-rotulo]::before {
+    content: attr(data-rotulo) ": ";
+    font-weight: 700;
+    color: var(--texto-suave);
+  }
+}

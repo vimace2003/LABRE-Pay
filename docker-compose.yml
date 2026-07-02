@@ -1,0 +1,52 @@
+# LABRE-Pay — ambiente local de desenvolvimento/testes
+#   docker compose up -d
+#   Sistema:    http://localhost:8080  (instalador na primeira vez)
+#   Emails:     http://localhost:8025  (Mailpit captura tudo — nada sai para a internet)
+#   phpMyAdmin: http://localhost:8081
+
+services:
+  app:
+    build: ./docker
+    ports:
+      - "8080:80"
+    volumes:
+      - ./public:/var/www/html
+      - ./app:/var/www/app
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      LABREPAY_DOCKER: "1"
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: labrepay
+      MYSQL_USER: labrepay
+      MYSQL_PASSWORD: labrepay
+      MYSQL_ROOT_PASSWORD: root
+    volumes:
+      - db-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-plabrepay", "-ulabrepay"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"   # interface web
+      # SMTP interno na 1025 — o app alcança via hostname "mailpit"
+
+  phpmyadmin:
+    image: phpmyadmin:latest
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: labrepay
+      PMA_PASSWORD: labrepay
+
+volumes:
+  db-data:

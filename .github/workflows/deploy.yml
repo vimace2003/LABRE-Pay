@@ -1,0 +1,91 @@
+# LABRE-Pay — CI/CD para cPanel
+#
+# Branches → ambientes:
+#   main    → environment "production"  (produção)
+#   homolog → environment "homolog"     (homologação)
+#
+# Secrets por environment (Settings → Environments no GitHub):
+#   FTP_SERVER    ex.: ftp.labre-sc.org.br
+#   FTP_USERNAME  usuário FTP/cPanel do deploy
+#   FTP_PASSWORD  senha
+#   FTP_DIR       pasta remota, ex.: /public_html/pay/   (termina com /)
+#
+# Método padrão: FTPS incremental (funciona em qualquer cPanel).
+# Se a hospedagem oferecer SSH, prefira o job "deploy-ssh" (comentado no fim).
+
+name: Deploy cPanel
+
+on:
+  push:
+    branches: [main, homolog]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+      - name: Lint de sintaxe em todos os PHP
+        run: |
+          erros=0
+          while IFS= read -r -d '' f; do
+            php -l "$f" > /dev/null || erros=1
+          done < <(find app public -name '*.php' -print0)
+          exit $erros
+
+  deploy:
+    needs: lint
+    runs-on: ubuntu-latest
+    environment: ${{ github.ref_name == 'main' && 'production' || 'homolog' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enviar via FTPS (incremental)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftps
+          server-dir: ${{ secrets.FTP_DIR }}
+          state-name: .ftp-deploy-state.json
+          exclude: |
+            **/.git*
+            **/.git*/**
+            docker/**
+            docker-compose.yml
+            docs/**
+            app/config.php
+            app/config.sample.php
+            app/install.lock
+            app/backups/**
+            app/import-*.json
+            ESCOPO.md
+            README.md
+
+  # ------------------------------------------------------------------
+  # Alternativa (melhor prática se a hospedagem tiver SSH): rsync + chave
+  # dedicada de deploy. Descomente, crie o secret SSH_PRIVATE_KEY e os
+  # demais, e remova o job FTPS acima.
+  # ------------------------------------------------------------------
+  # deploy-ssh:
+  #   needs: lint
+  #   runs-on: ubuntu-latest
+  #   environment: ${{ github.ref_name == 'main' && 'production' || 'homolog' }}
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: Configurar chave SSH
+  #       run: |
+  #         mkdir -p ~/.ssh
+  #         echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+  #         chmod 600 ~/.ssh/id_ed25519
+  #         ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+  #     - name: Enviar via rsync
+  #       run: |
+  #         rsync -avz --delete \
+  #           -e "ssh -p ${{ secrets.SSH_PORT }}" \
+  #           --exclude '.git*' --exclude 'docker*' --exclude 'docs' \
+  #           --exclude 'app/config.php' --exclude 'app/install.lock' \
+  #           --exclude 'app/backups' --exclude 'app/import-*.json' \
+  #           ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ secrets.REMOTE_DIR }}

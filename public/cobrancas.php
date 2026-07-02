@@ -1,0 +1,191 @@
+<?php
+/** Cobranças: geração anual em lote, reenvio, cancelamento e baixa manual. */
+
+require __DIR__ . '/../app/bootstrap.php';
+require APP_DIR . '/auth.php';
+require APP_DIR . '/layout.php';
+require APP_DIR . '/cobranca.php';
+
+$user = require_login();
+
+/* ---------- Geração em lote (chamadas AJAX em blocos) ---------- */
+if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    csrf_check();
+    header('Content-Type: application/json; charset=UTF-8');
+    $ano = (int)($_POST['ano'] ?? 0);
+    $valor = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
+    $venc = $_POST['vencimento'] ?: vencimento_do_ano($ano);
+    if ($ano < 2000 || $ano > 2100 || $valor <= 0) {
+        echo json_encode(['erro' => 'Ano ou valor inválido.']);
+        exit;
+    }
+
+    // Contribuintes ativos ainda sem cobrança (não cancelada) do ano
+    $sqlPendentes = "SELECT m.* FROM members m
+        WHERE m.status = 'ativo' AND m.classe = 'contribuinte'
+          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')";
+    $st = db()->prepare($sqlPendentes . ' ORDER BY m.nome LIMIT 4');
+    $st->execute([$ano]);
+    $membros = $st->fetchAll();
+
+    $mensagens = [];
+    $processados = 0;
+    foreach ($membros as $m) {
+        $charge = charge_criar((int)$m['id'], $ano, "Anuidade {$ano}", $valor, $venc, false);
+        [$okEnv, $msg] = charge_enviar($charge, $m);
+        if (!$okEnv) $mensagens[] = $msg;
+        $processados++;
+    }
+
+    $st = db()->prepare("SELECT COUNT(*) FROM members m
+        WHERE m.status = 'ativo' AND m.classe = 'contribuinte'
+          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')");
+    $st->execute([$ano]);
+    $restantes = (int)$st->fetchColumn();
+
+    echo json_encode([
+        'processados' => $processados,
+        'restantes' => $restantes,
+        'terminou' => $restantes === 0,
+        'mensagens' => $mensagens,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+/* ---------- Ações individuais ---------- */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['acao'] ?? '') === '') {
+    csrf_check();
+    $acao = $_POST['acao'] ?? '';
+    $charge = charge_get((int)($_POST['id'] ?? 0));
+    if (!$charge) {
+        flash_set('erro', 'Cobrança não encontrada.');
+        redirect('cobrancas.php');
+    }
+
+    if ($acao === 'reenviar' && in_array($charge['status'], ['pendente', 'vencida'], true)) {
+        [$ok, $msg] = charge_enviar($charge, null, $charge['status'] === 'vencida' ? 'lembrete' : 'cobranca');
+        flash_set($ok ? 'ok' : 'erro', $msg);
+    }
+    if ($acao === 'cancelar' && in_array($charge['status'], ['pendente', 'vencida'], true)) {
+        db()->prepare("UPDATE charges SET status = 'cancelada' WHERE id = ?")->execute([$charge['id']]);
+        audit('cobranca_cancelada', 'charge', (int)$charge['id']);
+        flash_set('ok', 'Cobrança cancelada.');
+    }
+    if ($acao === 'pagar_manual' && in_array($charge['status'], ['pendente', 'vencida'], true)) {
+        $valorPago = (float)str_replace(',', '.', (string)($_POST['valor_pago'] ?? '0'));
+        if ($valorPago <= 0) $valorPago = valor_devido($charge)['valor'];
+        charge_marcar_paga($charge, $valorPago, null, trim($_POST['meio'] ?? 'manual') ?: 'manual', true);
+        flash_set('ok', 'Pagamento registrado manualmente e comprovante enviado.');
+    }
+    redirect('cobrancas.php?ano=' . (int)$charge['ano']);
+}
+
+/* ---------- Listagem ---------- */
+$anoAtual = (int)date('Y');
+$anoProximoVenc = (int)date('Y', strtotime(proximo_vencimento(date('Y-m-d'))));
+$ano = (int)($_GET['ano'] ?? $anoAtual);
+$filtro = $_GET['f'] ?? 'todas';
+
+$sql = 'SELECT c.*, m.nome, m.indicativo, m.email FROM charges c JOIN members m ON m.id = c.member_id WHERE c.ano = ?';
+$params = [$ano];
+if (in_array($filtro, ['pendente', 'pago', 'vencida', 'cancelada'], true)) {
+    $sql .= ' AND c.status = ?';
+    $params[] = $filtro;
+}
+$sql .= ' ORDER BY m.nome LIMIT 1000';
+$st = db()->prepare($sql);
+$st->execute($params);
+$lista = $st->fetchAll();
+
+$anos = db()->query('SELECT DISTINCT ano FROM charges ORDER BY ano DESC')->fetchAll(PDO::FETCH_COLUMN);
+if (!in_array($ano, $anos)) { $anos[] = $ano; rsort($anos); }
+
+$rotulosStatus = ['pendente' => 'Pendente', 'pago' => 'Pago', 'vencida' => 'Vencida', 'cancelada' => 'Cancelada'];
+
+page_header('Cobranças', 'cobrancas.php', $user);
+?>
+
+<div class="cartao">
+  <h2 style="margin-top:0">Gerar cobrança anual em lote</h2>
+  <p>Cria a cobrança da anuidade para <strong>todos os contribuintes ativos</strong> que ainda não
+     têm cobrança do ano escolhido, gera o link de pagamento e envia o email de cada um.
+     Quem já tem cobrança no ano não é cobrado de novo.</p>
+  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote">
+    <?= csrf_field() ?>
+    <div class="linha-campos">
+      <label>Ano de referência <input type="number" name="ano" value="<?= $anoProximoVenc ?>" min="2000" max="2100" required></label>
+      <label>Valor da anuidade <input type="text" name="valor" value="<?= e(number_format((float)setting('anuidade_valor'), 2, ',', '')) ?>" inputmode="decimal" required></label>
+      <label>Vencimento <input type="date" name="vencimento" value="<?= e(vencimento_do_ano($anoProximoVenc)) ?>" required></label>
+    </div>
+    <br>
+    <button type="submit" class="botao botao-verde">Gerar e enviar cobranças</button>
+    <div style="display:none;margin-top:1rem" class="progresso-envolve">
+      <div class="progresso"><div id="lote-barra"></div></div>
+      <p id="lote-status" class="texto-suave"></p>
+    </div>
+    <div style="display:none" class="cartao"><strong>Avisos:</strong><ul id="lote-mensagens"></ul></div>
+  </form>
+</div>
+
+<div class="toolbar">
+  <form method="get">
+    <label>Ano
+      <select name="ano"><?php foreach ($anos as $a): ?><option value="<?= (int)$a ?>" <?= (int)$a === $ano ? 'selected' : '' ?>><?= (int)$a ?></option><?php endforeach; ?></select>
+    </label>
+    <label>Status
+      <select name="f">
+        <option value="todas">Todas</option>
+        <?php foreach ($rotulosStatus as $v => $r): ?><option value="<?= $v ?>" <?= $filtro === $v ? 'selected' : '' ?>><?= $r ?></option><?php endforeach; ?>
+      </select>
+    </label>
+    <button type="submit" class="botao">Filtrar</button>
+  </form>
+</div>
+
+<?php if (!$lista): ?>
+  <div class="cartao vazio">
+    <strong>Nenhuma cobrança em <?= $ano ?></strong>
+    Use "Gerar cobrança anual em lote" acima para criar as cobranças do ano.
+  </div>
+<?php else: ?>
+  <div class="tabela-envolve tabela-cards">
+    <table class="tabela">
+      <thead><tr><th>Associado</th><th>Descrição</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th></tr></thead>
+      <tbody>
+      <?php foreach ($lista as $c): $devido = valor_devido($c); ?>
+        <tr>
+          <td data-rotulo="Associado"><?= e($c['nome']) ?> <span class="texto-suave"><?= e($c['indicativo'] ?: '') ?></span></td>
+          <td data-rotulo="Descrição"><?= e($c['descricao']) ?></td>
+          <td data-rotulo="Valor">
+            <?= e(fmt_moeda((float)$c['valor'])) ?>
+            <?php if ($c['status'] !== 'pago' && $c['status'] !== 'cancelada' && abs($devido['valor'] - (float)$c['valor']) > 0.005): ?>
+              <br><span class="texto-suave">hoje: <?= e(fmt_moeda($devido['valor'])) ?><?= $devido['fase'] === 'atraso' ? ' (c/ multa e juros)' : ' (c/ desconto)' ?></span>
+            <?php endif; ?>
+            <?php if ($c['status'] === 'pago'): ?><br><span class="texto-suave">pago: <?= e(fmt_moeda((float)$c['valor_pago'])) ?></span><?php endif; ?>
+          </td>
+          <td data-rotulo="Vencimento"><?= e(fmt_data($c['vencimento'])) ?></td>
+          <td data-rotulo="Status"><span class="selo selo-<?= e($c['status']) ?>"><?= e($rotulosStatus[$c['status']]) ?></span>
+            <?php if ($c['status'] === 'pago' && $c['pago_manual']): ?><span class="texto-suave">(manual)</span><?php endif; ?>
+          </td>
+          <td class="acoes">
+            <?php if (in_array($c['status'], ['pendente', 'vencida'], true)): ?>
+              <form method="post"><?= csrf_field() ?><input type="hidden" name="acao" value="reenviar"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+                <button class="botao botao-mini" <?= $c['email'] ? '' : 'disabled title="Associado sem email"' ?>>Reenviar</button></form>
+              <form method="post" data-confirmar="Registrar pagamento manual desta cobrança (valor devido hoje: <?= e(fmt_moeda($devido['valor'])) ?>)?">
+                <?= csrf_field() ?><input type="hidden" name="acao" value="pagar_manual"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+                <button class="botao botao-mini botao-verde">Baixa manual</button></form>
+              <form method="post" data-confirmar="Cancelar esta cobrança?">
+                <?= csrf_field() ?><input type="hidden" name="acao" value="cancelar"><input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+                <button class="botao botao-mini botao-perigo">Cancelar</button></form>
+            <?php elseif ($c['status'] === 'pago'): ?>
+              <a class="botao botao-mini" href="comprovante.php?c=<?= (int)$c['id'] ?>&t=<?= e($c['token']) ?>" target="_blank" rel="noopener">Comprovante</a>
+            <?php endif; ?>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table>
+  </div>
+<?php endif; ?>
+
+<?php page_footer(); ?>
