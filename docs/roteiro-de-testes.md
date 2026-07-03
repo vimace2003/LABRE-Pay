@@ -87,12 +87,12 @@ Legenda: ☐ pendente · ☑ passou · ✗ falhou (anotar o que aconteceu)
 
 | # | Passo | Resultado esperado |
 |---|---|---|
-| 7.1 | Gerar lote de um ano antigo (ex.: ano passado) com vencimento = ONTEM | Cobranças criadas já vencendo ontem |
-| 7.2 | Rodar o cron (URL com token, em Configurações) | Cobranças de 7.1 viram **Vencidas** |
+| 7.1 | Cancelar a cobrança pendente de UM associado e gerar o lote do ano vigente de novo com vencimento = ONTEM (campo livre do admin) | Só a cobrança cancelada é recriada, já vencendo ontem (o lote não aceita ano passado/futuro) |
+| 7.2 | Rodar o cron (URL com token, em Configurações) | Cobrança de 7.1 vira **Vencida** |
 | 7.3 | Consultar um desses associados na consulta pública | Valor exibido = original + multa 2% + juros proporcionais, com o detalhamento |
 | 7.4 | Pagar essa cobrança (MP teste) ou dar baixa manual | Comprovante mostra a linha "MULTA E JUROS +X,XX" |
 | 7.5 | Cobrança proporcional (adesão) vencida | NÃO recebe multa (isenta) — valor não muda |
-| 7.6 | Ativar desconto por antecipação (ex.: 10% até 31/12) e gerar cobrança do ano seguinte | Consulta mostra valor com desconto e a data-limite |
+| 7.6 | Ativar desconto por antecipação (ex.: 10%) com data-limite futura (dia/mês daqui a alguns dias) e consultar um associado com anuidade pendente ainda não vencida | Consulta mostra o valor com desconto e a data-limite; a avulsa do mesmo associado continua com valor cheio |
 
 ## 7b. Cobranças avulsas (serviços extras)
 
