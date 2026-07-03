@@ -12,6 +12,7 @@ services:
     volumes:
       - ./public:/var/www/html
       - ./app:/var/www/app
+      - ./tests:/var/www/tests:ro
     depends_on:
       db:
         condition: service_healthy

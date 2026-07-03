@@ -35,8 +35,28 @@ jobs:
           done < <(find app public -name '*.php' -print0)
           exit $erros
 
-  deploy:
+  test:
     needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Subir ambiente (app + MySQL + Mailpit)
+        run: docker compose up -d --build
+      - name: Aguardar o app responder
+        run: |
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/index.php || true)
+            if [ "$code" = "200" ] || [ "$code" = "302" ]; then exit 0; fi
+            sleep 3
+          done
+          echo "App não subiu a tempo"
+          docker compose logs app | tail -50
+          exit 1
+      - name: Rodar testes E2E
+        run: docker compose exec -T app php /var/www/tests/e2e.php
+
+  deploy:
+    needs: [lint, test]
     runs-on: ubuntu-latest
     environment: ${{ github.ref_name == 'main' && 'production' || 'homolog' }}
     steps:
@@ -56,6 +76,7 @@ jobs:
             docker/**
             docker-compose.yml
             docs/**
+            tests/**
             app/config.php
             app/config.sample.php
             app/install.lock
