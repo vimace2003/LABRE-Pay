@@ -99,7 +99,7 @@ page_header('Relatórios', 'relatorios.php', $user);
       <button type="submit" class="botao">Ver</button>
     </form>
     <a class="botao" href="relatorios.php?mes=<?= e($mes) ?>&csv=1">Exportar CSV</a>
-    <button class="botao nao-imprimir" onclick="window.print()">Imprimir</button>
+    <button type="button" class="botao nao-imprimir js-imprimir">Imprimir</button>
   </div>
 
   <?php if (!$pagamentosMes): ?>

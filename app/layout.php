@@ -74,5 +74,5 @@ function public_header(string $titulo): void
 function public_footer(): void
 {
     echo '<footer class="publica-rodape"><a href="privacidade.php">Política de privacidade</a></footer>';
-    echo '</main></body></html>';
+    echo '</main><script src="assets/app.js"></script></body></html>';
 }

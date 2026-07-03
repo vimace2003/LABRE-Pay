@@ -1,5 +1,12 @@
 // LABRE-Pay — JS leve do painel (sem dependências externas).
 
+// Botões de impressão (CSP bloqueia onclick inline; o comportamento fica aqui)
+document.addEventListener('click', function (ev) {
+  if (ev.target.closest('.js-imprimir')) {
+    window.print();
+  }
+});
+
 // Confirmação explícita para ações destrutivas
 document.addEventListener('submit', function (ev) {
   const form = ev.target;

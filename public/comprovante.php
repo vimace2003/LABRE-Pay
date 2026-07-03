@@ -39,6 +39,6 @@ public_header('Comprovante de pagamento');
     <dt>Código</dt><dd>COMP-<?= (int)$charge['id'] ?>-<?= e(strtoupper(substr($charge['token'], 0, 8))) ?></dd>
   </dl>
   <p class="texto-suave">Documento sem valor fiscal, emitido pelo sistema de anuidades em <?= e(date('d/m/Y H:i')) ?>.</p>
-  <p class="nao-imprimir"><button class="botao botao-primario" onclick="window.print()">Imprimir / salvar PDF</button></p>
+  <p class="nao-imprimir"><button type="button" class="botao botao-primario js-imprimir">Imprimir / salvar PDF</button></p>
 </div>
 <?php public_footer(); ?>
