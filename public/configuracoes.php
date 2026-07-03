@@ -105,9 +105,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 function campo(string $k, string $rotulo, string $tipo = 'text', string $dica = ''): void
 {
+    $v = setting($k);
+    // O editor rico não pode viver dentro de <label> (o clique na área de edição
+    // desviaria o foco para o textarea oculto), então usa um <div> próprio.
+    if ($tipo === 'editor') {
+        echo '<div class="campo-editor"><span class="campo-rotulo">' . e($rotulo) . '</span>';
+        if ($dica) echo '<span class="dica">' . e($dica) . '</span>';
+        echo '<textarea name="' . e($k) . '" rows="7" class="editor-rico">' . e($v) . '</textarea></div>';
+        return;
+    }
     echo '<label>' . e($rotulo);
     if ($dica) echo '<span class="dica">' . e($dica) . '</span>';
-    $v = setting($k);
     if ($tipo === 'textarea') {
         echo '<textarea name="' . e($k) . '" rows="5">' . e($v) . '</textarea>';
     } else {
@@ -238,11 +246,11 @@ page_header('Configurações', 'configuracoes.php', $user);
     <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{valor}}, {{valor_original}},
        {{vencimento}}, {{entidade}}, {{sigla}}, {{botao_pagar}}, {{link_pagamento}}, {{link_comprovante}}</p>
     <?php campo('email_cobranca_assunto', 'Cobrança — assunto'); ?>
-    <?php campo('email_cobranca_corpo', 'Cobrança — corpo (HTML)', 'textarea'); ?>
+    <?php campo('email_cobranca_corpo', 'Cobrança — corpo', 'editor'); ?>
     <?php campo('email_lembrete_assunto', 'Lembrete — assunto'); ?>
-    <?php campo('email_lembrete_corpo', 'Lembrete — corpo (HTML)', 'textarea'); ?>
+    <?php campo('email_lembrete_corpo', 'Lembrete — corpo', 'editor'); ?>
     <?php campo('email_confirmacao_assunto', 'Confirmação de pagamento — assunto'); ?>
-    <?php campo('email_confirmacao_corpo', 'Confirmação de pagamento — corpo (HTML)', 'textarea'); ?>
+    <?php campo('email_confirmacao_corpo', 'Confirmação de pagamento — corpo', 'editor'); ?>
   </div>
 
   <div style="display:flex;gap:.7rem;flex-wrap:wrap">
