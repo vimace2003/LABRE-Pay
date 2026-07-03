@@ -224,7 +224,8 @@ $hoje = date('Y-m-d');
 http('POST', '/associados.php', [
     'csrf' => csrf_atual('/associados.php?novo=1'), 'acao' => 'salvar', 'id' => '0',
     'nome' => 'Xavier MeioCiclo', 'indicativo' => 'PP5E2E', 'email' => 'xavier@example.org',
-    'cpf_cnpj' => '987.654.321-00', 'categoria' => 'efetivo', 'classe' => 'contribuinte',
+    'cpf_cnpj' => '987.654.321-00', 'telefone' => '(48) 99999-1234',
+    'categoria' => 'efetivo', 'classe' => 'contribuinte',
     'data_adesao' => $hoje, 'valor_primeira' => '',
 ]);
 check('associado de meio de ciclo cadastrado', (int)pdo()->query("SELECT COUNT(*) FROM members WHERE indicativo='PP5E2E'")->fetchColumn() === 1);
@@ -441,6 +442,8 @@ check('relatórios com gráficos SVG', $st === 200 && substr_count($html, '<svg'
 check('menu lateral sem "Importar planilha" (movida p/ Configurações)', !str_contains($html, '>Importar planilha</a>'));
 [, $html] = http('GET', '/configuracoes.php');
 check('Configurações têm o acesso à importação', str_contains($html, 'href="importar.php"'));
+[, $html] = http('GET', '/associados.php?status=todos');
+check('lista de associados com telefone e link do WhatsApp', str_contains($html, 'wa.me/5548999991234'));
 [$st] = http('GET', '/migrar.php');
 check('tela de migrações acessível', $st === 200);
 

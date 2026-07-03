@@ -339,6 +339,9 @@ page_header('Associados', 'associados.php', $user);
     <div class="cartao">
       <h2>Ações do associado</h2>
       <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+        <?php $waEdit = whatsapp_url($editando['telefone']); if ($waEdit): ?>
+          <a class="botao" href="<?= e($waEdit) ?>" target="_blank" rel="noopener"><?= icone_whatsapp() ?> WhatsApp</a>
+        <?php endif; ?>
         <a class="botao" href="associados.php?exportar=<?= (int)$editando['id'] ?>">Exportar dados (LGPD)</a>
         <?php if ($editando['status'] === 'ativo'): ?>
           <form method="post" data-confirmar="Desligar este associado? As cobranças em aberto serão canceladas. O histórico será preservado." style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
@@ -403,13 +406,16 @@ page_header('Associados', 'associados.php', $user);
   <?php else: ?>
     <div class="tabela-envolve tabela-cards">
       <table class="tabela">
-        <thead><tr><th>Nome</th><th>Indicativo</th><th>Email</th><th>Classe</th><th>Situação</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Indicativo</th><th>Email</th><th>Telefone</th><th>Classe</th><th>Situação</th><th>Ações</th></tr></thead>
         <tbody>
-        <?php foreach ($lista as $m): ?>
+        <?php foreach ($lista as $m): $wa = whatsapp_url($m['telefone']); ?>
           <tr>
             <td data-rotulo="Nome"><?= e($m['nome']) ?></td>
             <td data-rotulo="Indicativo"><?= e($m['indicativo'] ?: '—') ?></td>
             <td data-rotulo="Email"><?= e($m['email'] ?: '—') ?></td>
+            <td data-rotulo="Telefone"><?= e($m['telefone'] ?: '—') ?><?php if ($wa): ?>
+              <a class="wa-link" href="<?= e($wa) ?>" target="_blank" rel="noopener" title="Conversar no WhatsApp"><?= icone_whatsapp() ?></a>
+            <?php endif; ?></td>
             <td data-rotulo="Classe"><?= e(CLASSES[$m['classe']] ?? $m['classe']) ?></td>
             <td data-rotulo="Situação"><span class="selo selo-<?= e($m['status']) ?>"><?= $m['status'] === 'ativo' ? 'Ativo' : 'Desligado' ?></span></td>
             <td class="acoes"><a class="botao botao-mini" href="associados.php?editar=<?= (int)$m['id'] ?>">Abrir</a></td>
