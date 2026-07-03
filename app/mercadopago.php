@@ -75,7 +75,7 @@ function mp_garantir_preferencia(array $charge, array $member): array
     }
 
     // Expiração do link: fim do dia da próxima mudança de fase (ou +180 dias se estável)
-    $expiraData = $devido['fase_expira'] ?? date('Y-m-d', strtotime('+180 dias'));
+    $expiraData = $devido['fase_expira'] ?? date('Y-m-d', strtotime('+180 days'));
     $expiraIso = $expiraData . 'T23:59:59.000-03:00';
 
     $sigla = setting('entidade_sigla', 'LABRE');
