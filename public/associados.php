@@ -72,7 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $valor += (float)setting('taxa_admissao_valor', '0');
                 }
                 $vencCobranca = min(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months')), $pr['vencimento']);
-                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (adesão proporcional — {$pr['meses']} meses)", $valor, $vencCobranca, true);
+                $mesAno = date('m/Y', strtotime($dados['data_adesao']));
+                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (adesão em {$mesAno} — proporcional de {$pr['meses']} meses)", $valor, $vencCobranca, true);
                 $member = member_get($id);
                 [$okEnv, $msg] = charge_enviar($charge, $member);
                 flash_set($okEnv ? 'ok' : 'erro', 'Cobrança de adesão de ' . fmt_moeda($valor) . ' gerada. ' . $msg);
@@ -107,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $msgExtra = ' (incluída taxa de retorno de ' . fmt_moeda((float)setting('taxa_retorno_valor')) . ')';
                 }
                 $vencCobranca = min(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months')), $pr['vencimento']);
-                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (readmissão proporcional — {$pr['meses']} meses)", $valor, $vencCobranca, true);
+                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (readmissão em " . date('m/Y') . " — proporcional de {$pr['meses']} meses)", $valor, $vencCobranca, true);
                 [$okEnv, $msg] = charge_enviar($charge);
                 flash_set($okEnv ? 'ok' : 'erro', 'Associado readmitido. Cobrança de ' . fmt_moeda($valor) . $msgExtra . ' gerada. ' . $msg);
             } else {

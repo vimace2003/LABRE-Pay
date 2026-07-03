@@ -56,7 +56,10 @@ function calcular_prorata(string $dataAdesao): array
         'meses' => $meses,
         'valor' => $valor,
         'vencimento' => $venc,
-        'ano' => (int)date('Y', strtotime($venc)),
+        // A proporcional pertence ao CICLO em que a adesão aconteceu (quem entra
+        // em jul/2026 paga o restante do ciclo 2026); no ano seguinte entra no
+        // lote cheio normalmente. O ciclo é o ano anterior ao próximo vencimento.
+        'ano' => (int)date('Y', strtotime($venc)) - 1,
     ];
 }
 

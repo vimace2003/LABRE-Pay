@@ -28,17 +28,13 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
     $vencAno = vencimento_do_ano($ano);
     $prazoMeses = max(1, (int)setting('prazo_venc_meses', '3'));
 
-    // Contribuintes ativos pendentes de cobrança:
-    //  - adesão dentro do ciclo normal → anuidade cheia do ano (se ainda não tem);
-    //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional até o
-    //    próximo vencimento (se ainda não tem cobrança de ciclo futuro).
-    $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte' AND (
-        ((m.data_adesao IS NULL OR m.data_adesao <= ?)
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada'))
-        OR (m.data_adesao > ?
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano > ? AND c.status <> 'cancelada'))
-    )";
-    $paramsPendentes = [$vencAno, $ano, $vencAno, $ano];
+    // Contribuintes ativos sem cobrança do ano vigente:
+    //  - adesão dentro do ciclo normal → anuidade cheia do ano;
+    //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional do
+    //    restante do ciclo, registrada no MESMO ano (no ano seguinte, lote cheio).
+    $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte'
+        AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')";
+    $paramsPendentes = [$ano];
 
     $st = db()->prepare("SELECT m.* FROM members m WHERE {$condPendentes} ORDER BY m.nome LIMIT 4");
     $st->execute($paramsPendentes);
@@ -52,8 +48,9 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
             $pr = calcular_prorata($m['data_adesao']);
             $valorPr = round($valor / 12 * $pr['meses'], 2);
             $vencPr = min(date('Y-m-d', strtotime('+' . $prazoMeses . ' months')), $pr['vencimento']);
-            $charge = charge_criar((int)$m['id'], $pr['ano'],
-                "Anuidade {$pr['ano']} (adesão proporcional — {$pr['meses']} meses)", $valorPr, $vencPr, true);
+            $mesAno = date('m/Y', strtotime($m['data_adesao']));
+            $charge = charge_criar((int)$m['id'], $ano,
+                "Anuidade {$ano} (adesão em {$mesAno} — proporcional de {$pr['meses']} meses)", $valorPr, $vencPr, true);
             $mensagens[] = $m['nome'] . ': entrou em ' . fmt_data($m['data_adesao']) .
                 ' — cobrado proporcional de ' . fmt_moeda($valorPr) . " ({$pr['meses']} meses, vence " . fmt_data($vencPr) . ').';
         } else {

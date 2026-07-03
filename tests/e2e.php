@@ -254,6 +254,8 @@ check("meio de ciclo recebeu proporcional ({$mesesEsp} meses = R$ " . number_for
     'veio ' . ($prXavier['valor'] ?? 'nenhuma cobrança'));
 check('proporcional é isenta de multa', $prXavier && (int)$prXavier['isenta_multa'] === 1);
 check('proporcional NÃO é anuidade cheia', $prXavier && (float)$prXavier['valor'] < 120.00);
+check('proporcional registrada no ANO VIGENTE (aparece na lista de ' . $anoAtual . ')',
+    $prXavier && (int)$prXavier['ano'] === $anoAtual, 'veio ano ' . ($prXavier['ano'] ?? '?'));
 
 [, $json] = http('POST', '/cobrancas.php?acao=gerar_lote', [
     'csrf' => $csrfLote, 'ano' => (string)$anoAtual, 'valor' => '120,00', 'vencimento' => '',
