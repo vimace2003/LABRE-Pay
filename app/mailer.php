@@ -78,9 +78,10 @@ function mail_moldura(string $conteudo): string
     $logoImg = $logoRel !== ''
         ? '<img src="' . e(BASE_URL . '/' . $logoRel) . '" alt="" style="max-height:42px;vertical-align:middle;margin-right:12px">'
         : '';
+    $corTema = TEMAS[tema_atual()]['primaria'];
     return '<!DOCTYPE html><html lang="pt-BR"><body style="margin:0;background:#f2f4f7;font-family:Arial,Helvetica,sans-serif;color:#1a2733">' .
         '<div style="max-width:600px;margin:0 auto;padding:24px 16px">' .
-        '<div style="background:#123a5c;color:#fff;padding:16px 24px;border-radius:8px 8px 0 0;font-size:20px;font-weight:bold">' . $logoImg . $nome . '</div>' .
+        '<div style="background:' . e($corTema) . ';color:#fff;padding:16px 24px;border-radius:8px 8px 0 0;font-size:20px;font-weight:bold">' . $logoImg . $nome . '</div>' .
         '<div style="background:#ffffff;padding:24px;border-radius:0 0 8px 8px;font-size:16px;line-height:1.6">' . $conteudo . '</div>' .
         '<p style="text-align:center;color:#5a6b7b;font-size:13px;margin-top:16px">' . $rodape .
         '<br>Este email foi enviado pelo sistema de anuidades. Dúvidas: ' . e(setting('entidade_email_contato', '')) . '</p>' .

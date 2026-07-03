@@ -193,6 +193,23 @@ function fmt_data_hora(?string $iso): string
     return $ts ? date('d/m/Y H:i', $ts) : '—';
 }
 
+/** Temas de cores disponíveis (cor primária e variação clara). */
+const TEMAS = [
+    'azul'     => ['nome' => 'Azul clássico',  'primaria' => '#123a5c', 'clara' => '#1d5c8f'],
+    'verde'    => ['nome' => 'Verde floresta', 'primaria' => '#1b4d2e', 'clara' => '#2e7d4f'],
+    'petroleo' => ['nome' => 'Petróleo',       'primaria' => '#0f4c4c', 'clara' => '#1d7a74'],
+    'vinho'    => ['nome' => 'Vinho',          'primaria' => '#5c1220', 'clara' => '#8f2d42'],
+    'roxo'     => ['nome' => 'Roxo',           'primaria' => '#3b1d5c', 'clara' => '#6b3fa0'],
+    'grafite'  => ['nome' => 'Grafite',        'primaria' => '#263238', 'clara' => '#546e7a'],
+];
+
+/** Tema escolhido nas Configurações (sempre um válido). */
+function tema_atual(): string
+{
+    $t = setting('tema', 'azul');
+    return isset(TEMAS[$t]) ? $t : 'azul';
+}
+
 /** Nome amigável do meio de pagamento retornado pelo MercadoPago. */
 function fmt_meio_pagamento(?string $meio): string
 {

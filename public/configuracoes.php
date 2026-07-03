@@ -10,7 +10,7 @@ $user = require_login();
 
 /* Campos editáveis (whitelist) */
 $campos = [
-    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato',
+    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato', 'tema',
     'anuidade_valor', 'venc_dia', 'venc_mes',
     'multa_percent', 'juros_mes_percent',
     'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
@@ -72,6 +72,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             '<p>Se você recebeu este email, o SMTP está configurado corretamente.</p>', 'teste');
         flash_set($ok ? 'ok' : 'erro', $ok ? 'Email de teste enviado para ' . $user['email'] . (is_production() ? '' : ' (desviado para o dummy em ambiente de testes)') : 'Falha no envio — confira os dados de SMTP e o registro de emails.');
         redirect('configuracoes.php');
+    }
+
+    if (isset($_POST['tema']) && !isset(TEMAS[$_POST['tema']])) {
+        unset($_POST['tema']); // valor desconhecido é ignorado
     }
 
     $token = trim((string)($_POST['mp_access_token'] ?? ''));
@@ -146,6 +150,24 @@ page_header('Configurações', 'configuracoes.php', $user);
     <div class="linha-campos">
       <?php campo('entidade_site', 'Site'); ?>
       <?php campo('entidade_email_contato', 'Email de contato', 'email'); ?>
+    </div>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Aparência (cores do sistema)</h2>
+    <p class="texto-suave">Escolha a paleta que combina com a sua entidade. Vale para o painel,
+       a consulta pública, os relatórios impressos e o cabeçalho dos emails.
+       As cores de status (pago/pendente/vencido) não mudam.</p>
+    <div class="temas-grid">
+      <?php foreach (TEMAS as $chave => $t): ?>
+        <label class="tema-opcao <?= tema_atual() === $chave ? 'ativo' : '' ?>">
+          <input type="radio" name="tema" value="<?= e($chave) ?>" <?= tema_atual() === $chave ? 'checked' : '' ?>>
+          <span class="tema-cores">
+            <span style="background:<?= e($t['primaria']) ?>"></span><span style="background:<?= e($t['clara']) ?>"></span>
+          </span>
+          <?= e($t['nome']) ?>
+        </label>
+      <?php endforeach; ?>
     </div>
   </div>
 

@@ -18,6 +18,13 @@
   --foco: #1d5c8f;
 }
 
+/* Temas de cores (escolhidos em Configurações → Aparência) */
+body.tema-verde    { --azul: #1b4d2e; --azul-claro: #2e7d4f; --foco: #2e7d4f; }
+body.tema-petroleo { --azul: #0f4c4c; --azul-claro: #1d7a74; --foco: #1d7a74; }
+body.tema-vinho    { --azul: #5c1220; --azul-claro: #8f2d42; --foco: #8f2d42; }
+body.tema-roxo     { --azul: #3b1d5c; --azul-claro: #6b3fa0; --foco: #6b3fa0; }
+body.tema-grafite  { --azul: #263238; --azul-claro: #546e7a; --foco: #546e7a; }
+
 * { box-sizing: border-box; }
 
 html { font-size: 17px; }
@@ -280,6 +287,25 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
     margin: 0 auto;
   }
 }
+
+/* ---------- seletor de tema (Configurações → Aparência) ---------- */
+.temas-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: .7rem; }
+.tema-opcao {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .6rem;
+  border: 2px solid var(--borda);
+  border-radius: 8px;
+  padding: .6rem .8rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+.tema-opcao:hover { background: #f2f6f9; }
+.tema-opcao.ativo { border-color: var(--azul-claro); background: #f2f6f9; }
+.tema-opcao input { width: auto; min-height: auto; }
+.tema-cores { display: inline-flex; border-radius: 6px; overflow: hidden; }
+.tema-cores span { width: 22px; height: 22px; display: inline-block; }
 
 /* ---------- editor visual de templates de email ---------- */
 .campo-editor { display: flex; flex-direction: column; gap: .3rem; }

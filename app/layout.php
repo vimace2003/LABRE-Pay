@@ -53,7 +53,7 @@ function page_header(string $titulo, string $ativo, array $user): void
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . e($titulo) . ' — ' . e($sigla) . ' Pay</title>';
     echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
-    echo '</head><body class="admin">';
+    echo '</head><body class="admin tema-' . e(tema_atual()) . '">';
     echo env_banner();
     echo '<div class="layout">';
     $logo = logo_url();
@@ -86,7 +86,7 @@ function report_header(string $titulo, string $subtitulo, string $voltarUrl): vo
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . e($titulo) . ' — ' . e(setting('entidade_sigla', 'LABRE')) . '</title>';
     echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
-    echo '</head><body class="relatorio">';
+    echo '</head><body class="relatorio tema-' . e(tema_atual()) . '">';
     echo env_banner();
     echo '<div class="rel-pagina">';
     echo '<p class="nao-imprimir rel-acoes">';
@@ -120,7 +120,7 @@ function public_header(string $titulo): void
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . e($titulo) . ' — ' . e($sigla) . '</title>';
     echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
-    echo '</head><body class="publica">';
+    echo '</head><body class="publica tema-' . e(tema_atual()) . '">';
     echo env_banner();
     echo '<main class="publica-caixa">';
     $logo = logo_url();
