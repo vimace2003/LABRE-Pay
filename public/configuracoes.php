@@ -23,6 +23,8 @@ $campos = [
     'email_cobranca_assunto', 'email_cobranca_corpo',
     'email_lembrete_assunto', 'email_lembrete_corpo',
     'email_confirmacao_assunto', 'email_confirmacao_corpo',
+    'email_avulsa_assunto', 'email_avulsa_corpo',
+    'email_avulsa_confirmacao_assunto', 'email_avulsa_confirmacao_corpo',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -64,6 +66,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setting_save('logo_arquivo', '');
         audit('logo_removida');
         flash_set('ok', 'Logotipo removido — o sistema volta a mostrar apenas a sigla.');
+        redirect('configuracoes.php');
+    }
+
+    if (($_POST['acao'] ?? '') === 'zerar_dados') {
+        if (is_production()) {
+            flash_set('erro', 'Zerar dados não é permitido em produção.');
+            redirect('configuracoes.php');
+        }
+        if (strtoupper(trim($_POST['confirmacao'] ?? '')) !== 'ZERAR') {
+            flash_set('erro', 'Para zerar os dados, digite ZERAR no campo de confirmação.');
+            redirect('configuracoes.php');
+        }
+        $pdo = db();
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        foreach (['charges', 'members', 'email_log', 'login_attempts', 'audit_log'] as $t) {
+            $pdo->exec("TRUNCATE TABLE {$t}");
+        }
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        audit('dados_de_teste_zerados', null, null, 'associados, cobranças e logs apagados; configurações e usuários preservados');
+        flash_set('ok', 'Dados de teste zerados! Associados, cobranças e logs foram apagados. Configurações e usuários foram mantidos.');
         redirect('configuracoes.php');
     }
 
@@ -266,14 +288,18 @@ page_header('Configurações', 'configuracoes.php', $user);
 
   <div class="cartao form-grid">
     <h2 style="margin-top:0">Templates de email</h2>
-    <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{valor}}, {{valor_original}},
+    <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{descricao}}, {{valor}}, {{valor_original}},
        {{vencimento}}, {{entidade}}, {{sigla}}, {{botao_pagar}}, {{link_pagamento}}, {{link_comprovante}}</p>
-    <?php campo('email_cobranca_assunto', 'Cobrança — assunto'); ?>
-    <?php campo('email_cobranca_corpo', 'Cobrança — corpo', 'editor'); ?>
+    <?php campo('email_cobranca_assunto', 'Cobrança de anuidade — assunto'); ?>
+    <?php campo('email_cobranca_corpo', 'Cobrança de anuidade — corpo', 'editor'); ?>
     <?php campo('email_lembrete_assunto', 'Lembrete — assunto'); ?>
     <?php campo('email_lembrete_corpo', 'Lembrete — corpo', 'editor'); ?>
     <?php campo('email_confirmacao_assunto', 'Confirmação de pagamento — assunto'); ?>
     <?php campo('email_confirmacao_corpo', 'Confirmação de pagamento — corpo', 'editor'); ?>
+    <?php campo('email_avulsa_assunto', 'Cobrança avulsa — assunto', 'text', 'Use {{descricao}} para o nome do serviço'); ?>
+    <?php campo('email_avulsa_corpo', 'Cobrança avulsa — corpo', 'editor'); ?>
+    <?php campo('email_avulsa_confirmacao_assunto', 'Confirmação de avulsa — assunto'); ?>
+    <?php campo('email_avulsa_confirmacao_corpo', 'Confirmação de avulsa — corpo', 'editor'); ?>
   </div>
 
   <div style="display:flex;gap:.7rem;flex-wrap:wrap">
@@ -311,6 +337,31 @@ page_header('Configurações', 'configuracoes.php', $user);
   <input type="hidden" name="acao" value="testar_email">
   <button type="submit" class="botao">Enviar email de teste para mim</button>
 </form>
+
+<div class="cartao" style="margin-top:1rem">
+  <h2 style="margin-top:0">Importação de associados</h2>
+  <p>Carga inicial ou atualização em massa do quadro social a partir de uma planilha
+     (XLSX, XLS ou CSV), com mapeamento de colunas e prévia antes de gravar.
+     Tarefa esporádica — o dia a dia é pelo cadastro em <a href="associados.php">Associados</a>.</p>
+  <a class="botao botao-primario" href="importar.php">Importar planilha</a>
+</div>
+
+<?php if (!is_production()): ?>
+<div class="cartao" style="margin-top:1rem;border-color:var(--vermelho)">
+  <h2 style="margin-top:0;color:var(--vermelho)">Zona de perigo — só existe em ambiente de testes</h2>
+  <p>Apaga <strong>todos os associados, cobranças e registros de log</strong> para recomeçar os testes do zero.
+     As <strong>configurações</strong> (MercadoPago, SMTP, templates, tema, logo) e os <strong>usuários do painel</strong> são preservados.
+     Esta ação não pode ser desfeita.</p>
+  <form method="post" data-confirmar="Apagar TODOS os associados, cobranças e logs deste ambiente de testes? Esta ação não pode ser desfeita." style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:end">
+    <?= csrf_field() ?>
+    <input type="hidden" name="acao" value="zerar_dados">
+    <label>Digite ZERAR para confirmar
+      <input type="text" name="confirmacao" autocomplete="off" placeholder="ZERAR">
+    </label>
+    <button type="submit" class="botao botao-perigo">Zerar dados de teste</button>
+  </form>
+</div>
+<?php endif; ?>
 
 <div class="cartao" style="margin-top:1rem">
   <h2 style="margin-top:0">Informações do ambiente</h2>

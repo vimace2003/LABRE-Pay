@@ -51,7 +51,7 @@ if (setting('lembretes_ativos', '1') === '1') {
     $enviados = 0;
     $sql = "SELECT c.*, m.nome, m.indicativo, m.email, m.id AS mid FROM charges c
             JOIN members m ON m.id = c.member_id
-            WHERE c.status IN ('pendente','vencida') AND m.email IS NOT NULL AND m.status = 'ativo'
+            WHERE c.tipo = 'anuidade' AND c.status IN ('pendente','vencida') AND m.email IS NOT NULL AND m.status = 'ativo'
               AND (c.vencimento = DATE_ADD(CURDATE(), INTERVAL ? DAY)
                    OR c.vencimento = DATE_SUB(CURDATE(), INTERVAL ? DAY))
               AND NOT EXISTS (SELECT 1 FROM email_log e WHERE e.charge_id = c.id AND e.tipo = 'lembrete' AND DATE(e.criado_em) = CURDATE())";

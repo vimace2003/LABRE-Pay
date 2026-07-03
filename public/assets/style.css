@@ -219,6 +219,9 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
 .toolbar form { display: flex; gap: .7rem; flex-wrap: wrap; align-items: end; }
 .toolbar label { min-width: 160px; }
 
+.wa-link { display: inline-flex; vertical-align: middle; margin-left: .35rem; }
+.wa-link:hover { filter: brightness(.85); }
+
 .texto-suave { color: var(--texto-suave); }
 .vazio { text-align: center; color: var(--texto-suave); padding: 2.2rem 1rem; }
 .vazio strong { display: block; font-size: 1.1rem; margin-bottom: .3rem; color: var(--texto); }

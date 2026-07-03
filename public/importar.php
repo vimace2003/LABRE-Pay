@@ -158,8 +158,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-page_header('Importar planilha', 'importar.php', $user);
+page_header('Importar planilha', 'configuracoes.php', $user);
 ?>
+
+<p><a href="configuracoes.php">← Voltar às configurações</a></p>
 
 <?php if ($erro): ?><div class="flash flash-erro"><?= e($erro) ?></div><?php endif; ?>
 

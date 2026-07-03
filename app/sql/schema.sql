@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS members (
 CREATE TABLE IF NOT EXISTS charges (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   member_id INT UNSIGNED NOT NULL,
+  tipo ENUM('anuidade','avulsa') NOT NULL DEFAULT 'anuidade',
   ano SMALLINT UNSIGNED NOT NULL,
   descricao VARCHAR(190) NOT NULL,
   valor DECIMAL(10,2) NOT NULL,
@@ -157,5 +158,9 @@ INSERT IGNORE INTO settings (k, v) VALUES
   ('email_cobranca_corpo', '<p>Olá, <strong>{{nome}}</strong> ({{indicativo}})!</p><p>Está disponível a cobrança da sua anuidade <strong>{{ano}}</strong> da {{entidade}}, no valor de <strong>{{valor}}</strong>, com vencimento em <strong>{{vencimento}}</strong>.</p><p>Para pagar com Pix, boleto ou cartão, use o botão abaixo:</p><p>{{botao_pagar}}</p><p>Se preferir, consulte sua situação a qualquer momento em nossa página de consulta.</p><p>73!<br>{{entidade}}</p>'),
   ('email_lembrete_assunto', 'Lembrete: anuidade {{ano}} — {{sigla}}'),
   ('email_lembrete_corpo', '<p>Olá, <strong>{{nome}}</strong> ({{indicativo}})!</p><p>Este é um lembrete sobre a anuidade <strong>{{ano}}</strong> da {{entidade}}, no valor atual de <strong>{{valor}}</strong> (vencimento {{vencimento}}).</p><p>{{botao_pagar}}</p><p>Se você já pagou, por favor desconsidere este aviso.</p><p>73!<br>{{entidade}}</p>'),
+  ('email_avulsa_assunto', 'Cobrança: {{descricao}} — {{sigla}}'),
+  ('email_avulsa_corpo', '<p>Olá, <strong>{{nome}}</strong> ({{indicativo}})!</p><p>Está disponível a cobrança de <strong>{{descricao}}</strong>, no valor de <strong>{{valor}}</strong>, com vencimento em <strong>{{vencimento}}</strong>.</p><p>Para pagar com Pix, boleto ou cartão, use o botão abaixo:</p><p>{{botao_pagar}}</p><p>73!<br>{{entidade}}</p>'),
+  ('email_avulsa_confirmacao_assunto', 'Pagamento confirmado: {{descricao}} — {{sigla}}'),
+  ('email_avulsa_confirmacao_corpo', '<p>Olá, <strong>{{nome}}</strong> ({{indicativo}})!</p><p>Confirmamos o recebimento do pagamento de <strong>{{descricao}}</strong>, no valor de <strong>{{valor}}</strong>.</p><p>Seu comprovante: {{link_comprovante}}</p><p>Obrigado! 73!<br>{{entidade}}</p>'),
   ('email_confirmacao_assunto', 'Pagamento confirmado — anuidade {{ano}} {{sigla}}'),
   ('email_confirmacao_corpo', '<p>Olá, <strong>{{nome}}</strong> ({{indicativo}})!</p><p>Confirmamos o recebimento do pagamento da sua anuidade <strong>{{ano}}</strong> da {{entidade}}, no valor de <strong>{{valor}}</strong>.</p><p>Seu comprovante: {{link_comprovante}}</p><p>Obrigado por manter sua associação em dia. 73!<br>{{entidade}}</p>');

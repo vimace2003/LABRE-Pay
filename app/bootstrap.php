@@ -230,6 +230,19 @@ function so_digitos(string $s): string
     return preg_replace('/\D+/', '', $s);
 }
 
+/** Link wa.me para um telefone brasileiro ('' se o número não servir). */
+function whatsapp_url(?string $telefone): string
+{
+    $d = so_digitos((string)$telefone);
+    if (strlen($d) === 10 || strlen($d) === 11) {
+        $d = '55' . $d; // DDD + número → adiciona o código do Brasil
+    }
+    if (strlen($d) < 12 || strlen($d) > 13 || !str_starts_with($d, '55')) {
+        return '';
+    }
+    return 'https://wa.me/' . $d;
+}
+
 /** Token estável e não adivinhável ligado a um registro (comprovantes, links de pagamento). */
 function token_para(string $tipo, int $id): string
 {

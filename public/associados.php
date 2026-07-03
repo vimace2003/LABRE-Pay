@@ -72,13 +72,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $valor += (float)setting('taxa_admissao_valor', '0');
                 }
                 $vencCobranca = min(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months')), $pr['vencimento']);
-                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (adesão proporcional — {$pr['meses']} meses)", $valor, $vencCobranca, true);
+                $mesAno = date('m/Y', strtotime($dados['data_adesao']));
+                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (adesão em {$mesAno} — proporcional de {$pr['meses']} meses)", $valor, $vencCobranca, true);
                 $member = member_get($id);
                 [$okEnv, $msg] = charge_enviar($charge, $member);
                 flash_set($okEnv ? 'ok' : 'erro', 'Cobrança de adesão de ' . fmt_moeda($valor) . ' gerada. ' . $msg);
             }
         }
         redirect('associados.php');
+    }
+
+    if ($acao === 'cobranca_avulsa' && $id) {
+        $member = member_get($id);
+        $descricao = trim($_POST['descricao'] ?? '');
+        $valorAvulsa = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
+        $vencAvulsa = $_POST['vencimento'] ?: date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months'));
+        $comMulta = !empty($_POST['aplicar_multa']);
+        if (!$member || $member['status'] !== 'ativo') {
+            flash_set('erro', 'Cobrança avulsa só pode ser gerada para associado ativo.');
+        } elseif ($descricao === '' || $valorAvulsa <= 0 || $vencAvulsa < date('Y-m-d')) {
+            flash_set('erro', 'Informe descrição, valor maior que zero e vencimento a partir de hoje.');
+        } else {
+            $charge = charge_criar($id, (int)date('Y'), $descricao, $valorAvulsa, $vencAvulsa, !$comMulta, 'avulsa');
+            audit('cobranca_avulsa_criada', 'charge', (int)$charge['id'], "membro={$id} valor={$valorAvulsa} multa=" . ($comMulta ? 'sim' : 'nao'));
+            [$okEnv, $msg] = charge_enviar($charge, $member);
+            flash_set($okEnv ? 'ok' : 'erro', 'Cobrança avulsa de ' . fmt_moeda($valorAvulsa) . ' gerada. ' . $msg);
+        }
+        redirect('associados.php?editar=' . $id);
     }
 
     if ($acao === 'desligar' && $id) {
@@ -107,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $msgExtra = ' (incluída taxa de retorno de ' . fmt_moeda((float)setting('taxa_retorno_valor')) . ')';
                 }
                 $vencCobranca = min(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months')), $pr['vencimento']);
-                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (readmissão proporcional — {$pr['meses']} meses)", $valor, $vencCobranca, true);
+                $charge = charge_criar($id, $pr['ano'], "Anuidade {$pr['ano']} (readmissão em " . date('m/Y') . " — proporcional de {$pr['meses']} meses)", $valor, $vencCobranca, true);
                 [$okEnv, $msg] = charge_enviar($charge);
                 flash_set($okEnv ? 'ok' : 'erro', 'Associado readmitido. Cobrança de ' . fmt_moeda($valor) . $msgExtra . ' gerada. ' . $msg);
             } else {
@@ -287,10 +307,41 @@ page_header('Associados', 'associados.php', $user);
     </div>
   </form>
 
+  <?php if ($editando && $editando['status'] === 'ativo'): ?>
+    <form method="post" class="cartao form-grid">
+      <?= csrf_field() ?>
+      <input type="hidden" name="acao" value="cobranca_avulsa">
+      <input type="hidden" name="id" value="<?= (int)$editando['id'] ?>">
+      <h2 style="margin-top:0">Cobrança avulsa (serviço extra)</h2>
+      <p class="texto-suave">Para serviços fora da anuidade — ex.: envio de cartão QSL registrado.
+         Gera o link de pagamento e envia por email, com comprovante igual ao da anuidade.
+         Não interfere na situação da anuidade do associado.</p>
+      <div class="linha-campos">
+        <label>Descrição do serviço
+          <input type="text" name="descricao" placeholder="Ex.: Envio de cartão QSL registrado" required>
+        </label>
+        <label>Valor (R$) <input type="text" name="valor" inputmode="decimal" required></label>
+        <label>Vencimento
+          <input type="date" name="vencimento" value="<?= e(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months'))) ?>" required>
+        </label>
+      </div>
+      <label style="flex-direction:row;align-items:center;gap:.6rem">
+        <input type="checkbox" name="aplicar_multa" value="1" style="width:auto;min-height:auto">
+        Aplicar multa e juros após o vencimento (mesmos percentuais da anuidade)
+      </label>
+      <div>
+        <button type="submit" class="botao botao-verde" <?= $editando['email'] ? '' : 'title="Associado sem email — a cobrança será criada, mas o email não será enviado"' ?>>Gerar e enviar cobrança avulsa</button>
+      </div>
+    </form>
+  <?php endif; ?>
+
   <?php if ($editando): ?>
     <div class="cartao">
       <h2>Ações do associado</h2>
       <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+        <?php $waEdit = whatsapp_url($editando['telefone']); if ($waEdit): ?>
+          <a class="botao" href="<?= e($waEdit) ?>" target="_blank" rel="noopener"><?= icone_whatsapp() ?> WhatsApp</a>
+        <?php endif; ?>
         <a class="botao" href="associados.php?exportar=<?= (int)$editando['id'] ?>">Exportar dados (LGPD)</a>
         <?php if ($editando['status'] === 'ativo'): ?>
           <form method="post" data-confirmar="Desligar este associado? As cobranças em aberto serão canceladas. O histórico será preservado." style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
@@ -355,13 +406,16 @@ page_header('Associados', 'associados.php', $user);
   <?php else: ?>
     <div class="tabela-envolve tabela-cards">
       <table class="tabela">
-        <thead><tr><th>Nome</th><th>Indicativo</th><th>Email</th><th>Classe</th><th>Situação</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Nome</th><th>Indicativo</th><th>Email</th><th>Telefone</th><th>Classe</th><th>Situação</th><th>Ações</th></tr></thead>
         <tbody>
-        <?php foreach ($lista as $m): ?>
+        <?php foreach ($lista as $m): $wa = whatsapp_url($m['telefone']); ?>
           <tr>
             <td data-rotulo="Nome"><?= e($m['nome']) ?></td>
             <td data-rotulo="Indicativo"><?= e($m['indicativo'] ?: '—') ?></td>
             <td data-rotulo="Email"><?= e($m['email'] ?: '—') ?></td>
+            <td data-rotulo="Telefone"><?= e($m['telefone'] ?: '—') ?><?php if ($wa): ?>
+              <a class="wa-link" href="<?= e($wa) ?>" target="_blank" rel="noopener" title="Conversar no WhatsApp"><?= icone_whatsapp() ?></a>
+            <?php endif; ?></td>
             <td data-rotulo="Classe"><?= e(CLASSES[$m['classe']] ?? $m['classe']) ?></td>
             <td data-rotulo="Situação"><span class="selo selo-<?= e($m['status']) ?>"><?= $m['status'] === 'ativo' ? 'Ativo' : 'Desligado' ?></span></td>
             <td class="acoes"><a class="botao botao-mini" href="associados.php?editar=<?= (int)$m['id'] ?>">Abrir</a></td>

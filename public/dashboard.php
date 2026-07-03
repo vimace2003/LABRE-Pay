@@ -19,20 +19,24 @@ $tot = function (string $sql, array $p = []): int {
 $ativos = $tot("SELECT COUNT(*) FROM members WHERE status = 'ativo'");
 $contribuintes = $tot("SELECT COUNT(*) FROM members WHERE status = 'ativo' AND classe = 'contribuinte'");
 $isentos = $ativos - $contribuintes;
-$pagas = $tot("SELECT COUNT(*) FROM charges WHERE ano = ? AND status = 'pago'", [$ano]);
-$abertas = $tot("SELECT COUNT(*) FROM charges WHERE ano = ? AND status IN ('pendente','vencida')", [$ano]);
+$pagas = $tot("SELECT COUNT(*) FROM charges WHERE tipo = 'anuidade' AND ano = ? AND status = 'pago'", [$ano]);
+$abertas = $tot("SELECT COUNT(*) FROM charges WHERE tipo = 'anuidade' AND ano = ? AND status IN ('pendente','vencida')", [$ano]);
 $semCobranca = $tot("SELECT COUNT(*) FROM members m WHERE m.status='ativo' AND m.classe='contribuinte'
-    AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')", [$ano]);
+    AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.tipo = 'anuidade' AND c.ano = ? AND c.status <> 'cancelada')", [$ano]);
 
-$st = db()->prepare("SELECT COALESCE(SUM(valor_pago),0) FROM charges WHERE ano = ? AND status = 'pago'");
+$st = db()->prepare("SELECT COALESCE(SUM(valor_pago),0) FROM charges WHERE tipo = 'anuidade' AND ano = ? AND status = 'pago'");
 $st->execute([$ano]);
 $arrecadado = (float)$st->fetchColumn();
+
+$st = db()->prepare("SELECT COALESCE(SUM(valor_pago),0) FROM charges WHERE tipo = 'avulsa' AND ano = ? AND status = 'pago'");
+$st->execute([$ano]);
+$arrecadadoAvulsas = (float)$st->fetchColumn();
 
 /* Alerta Art. 40 IV: inadimplentes há mais de N meses */
 $mesesExclusao = max(1, (int)setting('meses_exclusao_auto', '3'));
 $st = db()->prepare("SELECT m.id, m.nome, m.indicativo, c.vencimento FROM members m
     JOIN charges c ON c.member_id = m.id
-    WHERE m.status = 'ativo' AND c.status = 'vencida'
+    WHERE m.status = 'ativo' AND c.status = 'vencida' AND c.tipo = 'anuidade'
       AND c.vencimento < DATE_SUB(CURDATE(), INTERVAL ? MONTH)
     GROUP BY m.id, m.nome, m.indicativo, c.vencimento ORDER BY c.vencimento LIMIT 50");
 $st->execute([$mesesExclusao]);
@@ -60,7 +64,8 @@ page_header('Início', 'dashboard.php', $user);
   <div class="resumo-card verde"><span class="num"><?= $pagas ?></span><span class="rotulo">Anuidades <?= $ano ?> pagas</span></div>
   <div class="resumo-card vermelho"><span class="num"><?= $abertas ?></span><span class="rotulo">Em aberto / vencidas</span></div>
   <div class="resumo-card amarelo"><span class="num"><?= $semCobranca ?></span><span class="rotulo">Ainda sem cobrança <?= $ano ?></span></div>
-  <div class="resumo-card verde"><span class="num" style="font-size:1.4rem"><?= e(fmt_moeda($arrecadado)) ?></span><span class="rotulo">Arrecadado em <?= $ano ?></span></div>
+  <div class="resumo-card verde"><span class="num" style="font-size:1.4rem"><?= e(fmt_moeda($arrecadado)) ?></span><span class="rotulo">Anuidades arrecadadas em <?= $ano ?></span>
+    <?php if ($arrecadadoAvulsas > 0): ?><span class="texto-suave">+ <?= e(fmt_moeda($arrecadadoAvulsas)) ?> em avulsas</span><?php endif; ?></div>
 </div>
 
 <?php if ($semCobranca > 0): ?>

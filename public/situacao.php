@@ -16,7 +16,7 @@ $busca = trim($_GET['busca'] ?? '');
 $sql = "SELECT m.*, c.id AS charge_id, c.status AS charge_status, c.valor AS charge_valor,
                c.valor_pago, c.pago_em, c.vencimento
         FROM members m
-        LEFT JOIN charges c ON c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada'
+        LEFT JOIN charges c ON c.member_id = m.id AND c.tipo = 'anuidade' AND c.ano = ? AND c.status <> 'cancelada'
         WHERE m.status = 'ativo'";
 $params = [$ano];
 if ($busca !== '') {

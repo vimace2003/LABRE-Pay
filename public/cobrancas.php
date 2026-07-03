@@ -15,25 +15,26 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
     $ano = (int)($_POST['ano'] ?? 0);
     $valor = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
     $venc = $_POST['vencimento'] ?: vencimento_para_emissao($ano);
-    if ($ano < 2000 || $ano > 2100 || $valor <= 0) {
-        echo json_encode(['erro' => 'Ano ou valor inválido.']);
+    if ($valor <= 0) {
+        echo json_encode(['erro' => 'Valor inválido.']);
+        exit;
+    }
+    // Cobrança em lote é sempre do ano vigente — nunca passado, nunca futuro.
+    if ($ano !== (int)date('Y')) {
+        echo json_encode(['erro' => 'A cobrança em lote só pode ser gerada para o ano vigente (' . date('Y') . ').'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
     $vencAno = vencimento_do_ano($ano);
     $prazoMeses = max(1, (int)setting('prazo_venc_meses', '3'));
 
-    // Contribuintes ativos pendentes de cobrança:
-    //  - adesão dentro do ciclo normal → anuidade cheia do ano (se ainda não tem);
-    //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional até o
-    //    próximo vencimento (se ainda não tem cobrança de ciclo futuro).
-    $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte' AND (
-        ((m.data_adesao IS NULL OR m.data_adesao <= ?)
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada'))
-        OR (m.data_adesao > ?
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano > ? AND c.status <> 'cancelada'))
-    )";
-    $paramsPendentes = [$vencAno, $ano, $vencAno, $ano];
+    // Contribuintes ativos sem cobrança do ano vigente:
+    //  - adesão dentro do ciclo normal → anuidade cheia do ano;
+    //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional do
+    //    restante do ciclo, registrada no MESMO ano (no ano seguinte, lote cheio).
+    $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte'
+        AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.tipo = 'anuidade' AND c.ano = ? AND c.status <> 'cancelada')";
+    $paramsPendentes = [$ano];
 
     $st = db()->prepare("SELECT m.* FROM members m WHERE {$condPendentes} ORDER BY m.nome LIMIT 4");
     $st->execute($paramsPendentes);
@@ -47,8 +48,9 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
             $pr = calcular_prorata($m['data_adesao']);
             $valorPr = round($valor / 12 * $pr['meses'], 2);
             $vencPr = min(date('Y-m-d', strtotime('+' . $prazoMeses . ' months')), $pr['vencimento']);
-            $charge = charge_criar((int)$m['id'], $pr['ano'],
-                "Anuidade {$pr['ano']} (adesão proporcional — {$pr['meses']} meses)", $valorPr, $vencPr, true);
+            $mesAno = date('m/Y', strtotime($m['data_adesao']));
+            $charge = charge_criar((int)$m['id'], $ano,
+                "Anuidade {$ano} (adesão em {$mesAno} — proporcional de {$pr['meses']} meses)", $valorPr, $vencPr, true);
             $mensagens[] = $m['nome'] . ': entrou em ' . fmt_data($m['data_adesao']) .
                 ' — cobrado proporcional de ' . fmt_moeda($valorPr) . " ({$pr['meses']} meses, vence " . fmt_data($vencPr) . ').';
         } else {
@@ -102,16 +104,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['acao'] ?? '') === '') {
 
 /* ---------- Listagem ---------- */
 $anoAtual = (int)date('Y');
-$anoProximoVenc = (int)date('Y', strtotime(proximo_vencimento(date('Y-m-d'))));
 $ano = (int)($_GET['ano'] ?? $anoAtual);
 $filtro = $_GET['f'] ?? 'todas';
 
+$filtroTipo = in_array($_GET['tipo'] ?? '', ['anuidade', 'avulsa'], true) ? $_GET['tipo'] : 'todas';
 $modoRelatorio = isset($_GET['csv']) || isset($_GET['imprimir']);
 $sql = 'SELECT c.*, m.nome, m.indicativo, m.email FROM charges c JOIN members m ON m.id = c.member_id WHERE c.ano = ?';
 $params = [$ano];
 if (in_array($filtro, ['pendente', 'pago', 'vencida', 'cancelada'], true)) {
     $sql .= ' AND c.status = ?';
     $params[] = $filtro;
+}
+if ($filtroTipo !== 'todas') {
+    $sql .= ' AND c.tipo = ?';
+    $params[] = $filtroTipo;
 }
 $sql .= ' ORDER BY m.nome LIMIT ' . ($modoRelatorio ? 10000 : 1000);
 $st = db()->prepare($sql);
@@ -179,16 +185,19 @@ page_header('Cobranças', 'cobrancas.php', $user);
   <p>Cria a cobrança da anuidade para <strong>todos os contribuintes ativos</strong> que ainda não
      têm cobrança do ano escolhido, gera o link de pagamento e envia o email de cada um.
      Quem já tem cobrança no ano não é cobrado de novo.</p>
-  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote"
-        data-venc-dia="<?= (int)setting('venc_dia', '31') ?>" data-venc-mes="<?= (int)setting('venc_mes', '1') ?>"
-        data-prazo-meses="<?= max(1, (int)setting('prazo_venc_meses', '3')) ?>">
+  <?php $anoVigente = (int)date('Y'); ?>
+  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote">
     <?= csrf_field() ?>
+    <input type="hidden" name="ano" value="<?= $anoVigente ?>">
     <div class="linha-campos">
-      <label>Ano de referência <input id="lote-ano" type="number" name="ano" value="<?= $anoProximoVenc ?>" min="2000" max="2100" required></label>
+      <label>Ano de referência
+        <span class="dica">Sempre o ano vigente — nunca passado nem futuro</span>
+        <input type="text" value="<?= $anoVigente ?>" disabled>
+      </label>
       <label>Valor da anuidade <input type="text" name="valor" value="<?= e(number_format((float)setting('anuidade_valor'), 2, ',', '')) ?>" inputmode="decimal" required></label>
       <label>Vencimento
         <span class="dica">Ciclo já em andamento? O sistema sugere <?= max(1, (int)setting('prazo_venc_meses', '3')) ?> meses após a emissão</span>
-        <input id="lote-venc" type="date" name="vencimento" value="<?= e(vencimento_para_emissao($anoProximoVenc)) ?>" required>
+        <input id="lote-venc" type="date" name="vencimento" value="<?= e(vencimento_para_emissao($anoVigente)) ?>" required>
       </label>
     </div>
     <p class="texto-suave">Quem entrou <strong>depois do vencimento do ano</strong> (adesão no meio do ciclo)
@@ -214,6 +223,13 @@ page_header('Cobranças', 'cobrancas.php', $user);
         <?php foreach ($rotulosStatus as $v => $r): ?><option value="<?= $v ?>" <?= $filtro === $v ? 'selected' : '' ?>><?= $r ?></option><?php endforeach; ?>
       </select>
     </label>
+    <label>Tipo
+      <select name="tipo">
+        <option value="todas">Todas</option>
+        <option value="anuidade" <?= $filtroTipo === 'anuidade' ? 'selected' : '' ?>>Anuidades</option>
+        <option value="avulsa" <?= $filtroTipo === 'avulsa' ? 'selected' : '' ?>>Avulsas</option>
+      </select>
+    </label>
     <button type="submit" class="botao">Filtrar</button>
   </form>
   <a class="botao" href="cobrancas.php?ano=<?= $ano ?>&f=<?= e(urlencode($filtro)) ?>&csv=1">Exportar CSV</a>
@@ -233,7 +249,8 @@ page_header('Cobranças', 'cobrancas.php', $user);
       <?php foreach ($lista as $c): $devido = valor_devido($c); ?>
         <tr>
           <td data-rotulo="Associado"><?= e($c['nome']) ?> <span class="texto-suave"><?= e($c['indicativo'] ?: '') ?></span></td>
-          <td data-rotulo="Descrição"><?= e($c['descricao']) ?></td>
+          <td data-rotulo="Descrição"><?= e($c['descricao']) ?>
+            <?php if ($c['tipo'] === 'avulsa'): ?> <span class="selo selo-cancelada">Avulsa</span><?php endif; ?></td>
           <td data-rotulo="Valor">
             <?= e(fmt_moeda((float)$c['valor'])) ?>
             <?php if ($c['status'] !== 'pago' && $c['status'] !== 'cancelada' && abs($devido['valor'] - (float)$c['valor']) > 0.005): ?>
