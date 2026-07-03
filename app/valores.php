@@ -92,9 +92,10 @@ function valor_devido(array $charge, ?string $data = null): array
     $venc = $charge['vencimento'];
     $isenta = !empty($charge['isenta_multa']);
 
-    // Fase 1: desconto por antecipação (não se aplica a pro-rata/isentas,
-    // que já têm valor próprio definido na adesão)
-    if (!$isenta) {
+    // Fase 1: desconto por antecipação — só para anuidades (nunca para
+    // avulsas) e não se aplica a pro-rata/isentas, que já têm valor próprio
+    $ehAnuidade = ($charge['tipo'] ?? 'anuidade') === 'anuidade';
+    if (!$isenta && $ehAnuidade) {
         $limite = desconto_data_limite($charge);
         if ($limite !== null && $data <= $limite) {
             $tipo = setting('desconto_tipo', 'percent');

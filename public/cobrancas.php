@@ -33,7 +33,7 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
     //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional do
     //    restante do ciclo, registrada no MESMO ano (no ano seguinte, lote cheio).
     $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte'
-        AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')";
+        AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.tipo = 'anuidade' AND c.ano = ? AND c.status <> 'cancelada')";
     $paramsPendentes = [$ano];
 
     $st = db()->prepare("SELECT m.* FROM members m WHERE {$condPendentes} ORDER BY m.nome LIMIT 4");
@@ -107,12 +107,17 @@ $anoAtual = (int)date('Y');
 $ano = (int)($_GET['ano'] ?? $anoAtual);
 $filtro = $_GET['f'] ?? 'todas';
 
+$filtroTipo = in_array($_GET['tipo'] ?? '', ['anuidade', 'avulsa'], true) ? $_GET['tipo'] : 'todas';
 $modoRelatorio = isset($_GET['csv']) || isset($_GET['imprimir']);
 $sql = 'SELECT c.*, m.nome, m.indicativo, m.email FROM charges c JOIN members m ON m.id = c.member_id WHERE c.ano = ?';
 $params = [$ano];
 if (in_array($filtro, ['pendente', 'pago', 'vencida', 'cancelada'], true)) {
     $sql .= ' AND c.status = ?';
     $params[] = $filtro;
+}
+if ($filtroTipo !== 'todas') {
+    $sql .= ' AND c.tipo = ?';
+    $params[] = $filtroTipo;
 }
 $sql .= ' ORDER BY m.nome LIMIT ' . ($modoRelatorio ? 10000 : 1000);
 $st = db()->prepare($sql);
@@ -218,6 +223,13 @@ page_header('Cobranças', 'cobrancas.php', $user);
         <?php foreach ($rotulosStatus as $v => $r): ?><option value="<?= $v ?>" <?= $filtro === $v ? 'selected' : '' ?>><?= $r ?></option><?php endforeach; ?>
       </select>
     </label>
+    <label>Tipo
+      <select name="tipo">
+        <option value="todas">Todas</option>
+        <option value="anuidade" <?= $filtroTipo === 'anuidade' ? 'selected' : '' ?>>Anuidades</option>
+        <option value="avulsa" <?= $filtroTipo === 'avulsa' ? 'selected' : '' ?>>Avulsas</option>
+      </select>
+    </label>
     <button type="submit" class="botao">Filtrar</button>
   </form>
   <a class="botao" href="cobrancas.php?ano=<?= $ano ?>&f=<?= e(urlencode($filtro)) ?>&csv=1">Exportar CSV</a>
@@ -237,7 +249,8 @@ page_header('Cobranças', 'cobrancas.php', $user);
       <?php foreach ($lista as $c): $devido = valor_devido($c); ?>
         <tr>
           <td data-rotulo="Associado"><?= e($c['nome']) ?> <span class="texto-suave"><?= e($c['indicativo'] ?: '') ?></span></td>
-          <td data-rotulo="Descrição"><?= e($c['descricao']) ?></td>
+          <td data-rotulo="Descrição"><?= e($c['descricao']) ?>
+            <?php if ($c['tipo'] === 'avulsa'): ?> <span class="selo selo-cancelada">Avulsa</span><?php endif; ?></td>
           <td data-rotulo="Valor">
             <?= e(fmt_moeda((float)$c['valor'])) ?>
             <?php if ($c['status'] !== 'pago' && $c['status'] !== 'cancelada' && abs($devido['valor'] - (float)$c['valor']) > 0.005): ?>

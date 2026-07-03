@@ -101,6 +101,7 @@ function mail_template(string $qual, array $member, array $charge): array
         '{{nome}}' => e($member['nome']),
         '{{indicativo}}' => e($member['indicativo'] ?: '—'),
         '{{ano}}' => (string)$charge['ano'],
+        '{{descricao}}' => e($charge['descricao']),
         '{{valor}}' => e(fmt_moeda($devido['valor'])),
         '{{valor_original}}' => e(fmt_moeda((float)$charge['valor'])),
         '{{vencimento}}' => e(fmt_data($charge['vencimento'])),
@@ -121,7 +122,7 @@ function mail_enviar_cobranca(string $tipo, array $member, array $charge): bool
     if (empty($member['email'])) return false;
     [$assunto, $corpo] = mail_template($tipo, $member, $charge);
     $ok = mail_enviar($member['email'], $member['nome'], $assunto, $corpo, $tipo, (int)$charge['id'], (int)$member['id']);
-    if ($ok && $tipo === 'cobranca') {
+    if ($ok && in_array($tipo, ['cobranca', 'avulsa'], true)) {
         db()->prepare('UPDATE charges SET enviado_em = NOW() WHERE id = ?')->execute([$charge['id']]);
     }
     return $ok;

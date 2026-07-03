@@ -94,6 +94,18 @@ Legenda: ☐ pendente · ☑ passou · ✗ falhou (anotar o que aconteceu)
 | 7.5 | Cobrança proporcional (adesão) vencida | NÃO recebe multa (isenta) — valor não muda |
 | 7.6 | Ativar desconto por antecipação (ex.: 10% até 31/12) e gerar cobrança do ano seguinte | Consulta mostra valor com desconto e a data-limite |
 
+## 7b. Cobranças avulsas (serviços extras)
+
+| # | Passo | Resultado esperado |
+|---|---|---|
+| 7b.1 | Configurações → aplicar migrações pendentes em `/migrar.php` | Migração `2026-07-03-cobranca-avulsa` aplicada |
+| 7b.2 | Abrir um associado ativo → cartão "Cobrança avulsa" → descrição "Envio de cartão QSL registrado", valor R$ 35, sem multa | Cobrança criada com selo "Avulsa" na tela de Cobranças; email no dummy com a descrição no assunto |
+| 7b.3 | Consulta pública do associado | Avulsa aparece junto da anuidade, com botão de pagar próprio |
+| 7b.4 | Pagar a avulsa (MP teste) ou baixa manual | Confirmação por email com a descrição + comprovante-cupom igual ao da anuidade |
+| 7b.5 | Situação anual do associado | NÃO muda por causa da avulsa (adimplência é só da anuidade) |
+| 7b.6 | Gerar lote do ano com o associado tendo avulsa | Ele continua recebendo a anuidade normalmente (avulsa não conta como anuidade) |
+| 7b.7 | Criar avulsa com "aplicar multa" marcado e vencimento próximo; após vencer, consultar | Valor com multa e juros; sem o desconto de antecipação da anuidade |
+
 ## 8. Consulta pública
 
 | # | Passo | Resultado esperado |

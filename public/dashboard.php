@@ -19,10 +19,10 @@ $tot = function (string $sql, array $p = []): int {
 $ativos = $tot("SELECT COUNT(*) FROM members WHERE status = 'ativo'");
 $contribuintes = $tot("SELECT COUNT(*) FROM members WHERE status = 'ativo' AND classe = 'contribuinte'");
 $isentos = $ativos - $contribuintes;
-$pagas = $tot("SELECT COUNT(*) FROM charges WHERE ano = ? AND status = 'pago'", [$ano]);
-$abertas = $tot("SELECT COUNT(*) FROM charges WHERE ano = ? AND status IN ('pendente','vencida')", [$ano]);
+$pagas = $tot("SELECT COUNT(*) FROM charges WHERE tipo = 'anuidade' AND ano = ? AND status = 'pago'", [$ano]);
+$abertas = $tot("SELECT COUNT(*) FROM charges WHERE tipo = 'anuidade' AND ano = ? AND status IN ('pendente','vencida')", [$ano]);
 $semCobranca = $tot("SELECT COUNT(*) FROM members m WHERE m.status='ativo' AND m.classe='contribuinte'
-    AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')", [$ano]);
+    AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.tipo = 'anuidade' AND c.ano = ? AND c.status <> 'cancelada')", [$ano]);
 
 $st = db()->prepare("SELECT COALESCE(SUM(valor_pago),0) FROM charges WHERE ano = ? AND status = 'pago'");
 $st->execute([$ano]);
@@ -32,7 +32,7 @@ $arrecadado = (float)$st->fetchColumn();
 $mesesExclusao = max(1, (int)setting('meses_exclusao_auto', '3'));
 $st = db()->prepare("SELECT m.id, m.nome, m.indicativo, c.vencimento FROM members m
     JOIN charges c ON c.member_id = m.id
-    WHERE m.status = 'ativo' AND c.status = 'vencida'
+    WHERE m.status = 'ativo' AND c.status = 'vencida' AND c.tipo = 'anuidade'
       AND c.vencimento < DATE_SUB(CURDATE(), INTERVAL ? MONTH)
     GROUP BY m.id, m.nome, m.indicativo, c.vencimento ORDER BY c.vencimento LIMIT 50");
 $st->execute([$mesesExclusao]);

@@ -23,6 +23,8 @@ $campos = [
     'email_cobranca_assunto', 'email_cobranca_corpo',
     'email_lembrete_assunto', 'email_lembrete_corpo',
     'email_confirmacao_assunto', 'email_confirmacao_corpo',
+    'email_avulsa_assunto', 'email_avulsa_corpo',
+    'email_avulsa_confirmacao_assunto', 'email_avulsa_confirmacao_corpo',
 ];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -286,14 +288,18 @@ page_header('Configurações', 'configuracoes.php', $user);
 
   <div class="cartao form-grid">
     <h2 style="margin-top:0">Templates de email</h2>
-    <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{valor}}, {{valor_original}},
+    <p class="texto-suave">Campos disponíveis: {{nome}}, {{indicativo}}, {{ano}}, {{descricao}}, {{valor}}, {{valor_original}},
        {{vencimento}}, {{entidade}}, {{sigla}}, {{botao_pagar}}, {{link_pagamento}}, {{link_comprovante}}</p>
-    <?php campo('email_cobranca_assunto', 'Cobrança — assunto'); ?>
-    <?php campo('email_cobranca_corpo', 'Cobrança — corpo', 'editor'); ?>
+    <?php campo('email_cobranca_assunto', 'Cobrança de anuidade — assunto'); ?>
+    <?php campo('email_cobranca_corpo', 'Cobrança de anuidade — corpo', 'editor'); ?>
     <?php campo('email_lembrete_assunto', 'Lembrete — assunto'); ?>
     <?php campo('email_lembrete_corpo', 'Lembrete — corpo', 'editor'); ?>
     <?php campo('email_confirmacao_assunto', 'Confirmação de pagamento — assunto'); ?>
     <?php campo('email_confirmacao_corpo', 'Confirmação de pagamento — corpo', 'editor'); ?>
+    <?php campo('email_avulsa_assunto', 'Cobrança avulsa — assunto', 'text', 'Use {{descricao}} para o nome do serviço'); ?>
+    <?php campo('email_avulsa_corpo', 'Cobrança avulsa — corpo', 'editor'); ?>
+    <?php campo('email_avulsa_confirmacao_assunto', 'Confirmação de avulsa — assunto'); ?>
+    <?php campo('email_avulsa_confirmacao_corpo', 'Confirmação de avulsa — corpo', 'editor'); ?>
   </div>
 
   <div style="display:flex;gap:.7rem;flex-wrap:wrap">

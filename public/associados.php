@@ -82,6 +82,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('associados.php');
     }
 
+    if ($acao === 'cobranca_avulsa' && $id) {
+        $member = member_get($id);
+        $descricao = trim($_POST['descricao'] ?? '');
+        $valorAvulsa = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
+        $vencAvulsa = $_POST['vencimento'] ?: date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months'));
+        $comMulta = !empty($_POST['aplicar_multa']);
+        if (!$member || $member['status'] !== 'ativo') {
+            flash_set('erro', 'Cobrança avulsa só pode ser gerada para associado ativo.');
+        } elseif ($descricao === '' || $valorAvulsa <= 0 || $vencAvulsa < date('Y-m-d')) {
+            flash_set('erro', 'Informe descrição, valor maior que zero e vencimento a partir de hoje.');
+        } else {
+            $charge = charge_criar($id, (int)date('Y'), $descricao, $valorAvulsa, $vencAvulsa, !$comMulta, 'avulsa');
+            audit('cobranca_avulsa_criada', 'charge', (int)$charge['id'], "membro={$id} valor={$valorAvulsa} multa=" . ($comMulta ? 'sim' : 'nao'));
+            [$okEnv, $msg] = charge_enviar($charge, $member);
+            flash_set($okEnv ? 'ok' : 'erro', 'Cobrança avulsa de ' . fmt_moeda($valorAvulsa) . ' gerada. ' . $msg);
+        }
+        redirect('associados.php?editar=' . $id);
+    }
+
     if ($acao === 'desligar' && $id) {
         $motivo = array_key_exists($_POST['motivo'] ?? '', MOTIVOS_DESLIGAMENTO) ? $_POST['motivo'] : 'a_pedido';
         db()->prepare("UPDATE members SET status = 'desligado', motivo_desligamento = ?, desligado_em = CURDATE() WHERE id = ?")
@@ -287,6 +306,34 @@ page_header('Associados', 'associados.php', $user);
       <a class="botao" href="associados.php">Cancelar</a>
     </div>
   </form>
+
+  <?php if ($editando && $editando['status'] === 'ativo'): ?>
+    <form method="post" class="cartao form-grid">
+      <?= csrf_field() ?>
+      <input type="hidden" name="acao" value="cobranca_avulsa">
+      <input type="hidden" name="id" value="<?= (int)$editando['id'] ?>">
+      <h2 style="margin-top:0">Cobrança avulsa (serviço extra)</h2>
+      <p class="texto-suave">Para serviços fora da anuidade — ex.: envio de cartão QSL registrado.
+         Gera o link de pagamento e envia por email, com comprovante igual ao da anuidade.
+         Não interfere na situação da anuidade do associado.</p>
+      <div class="linha-campos">
+        <label>Descrição do serviço
+          <input type="text" name="descricao" placeholder="Ex.: Envio de cartão QSL registrado" required>
+        </label>
+        <label>Valor (R$) <input type="text" name="valor" inputmode="decimal" required></label>
+        <label>Vencimento
+          <input type="date" name="vencimento" value="<?= e(date('Y-m-d', strtotime('+' . max(1, (int)setting('prazo_venc_meses', '3')) . ' months'))) ?>" required>
+        </label>
+      </div>
+      <label style="flex-direction:row;align-items:center;gap:.6rem">
+        <input type="checkbox" name="aplicar_multa" value="1" style="width:auto;min-height:auto">
+        Aplicar multa e juros após o vencimento (mesmos percentuais da anuidade)
+      </label>
+      <div>
+        <button type="submit" class="botao botao-verde" <?= $editando['email'] ? '' : 'title="Associado sem email — a cobrança será criada, mas o email não será enviado"' ?>>Gerar e enviar cobrança avulsa</button>
+      </div>
+    </form>
+  <?php endif; ?>
 
   <?php if ($editando): ?>
     <div class="cartao">

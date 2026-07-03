@@ -83,7 +83,7 @@ document.querySelectorAll('textarea.editor-rico').forEach(function (ta) {
   campos.title = 'Inserir um campo automático no texto';
   [['', 'Inserir campo…'],
    ['{{nome}}', 'Nome do associado'], ['{{indicativo}}', 'Indicativo'],
-   ['{{ano}}', 'Ano da anuidade'], ['{{valor}}', 'Valor atual'],
+   ['{{ano}}', 'Ano da anuidade'], ['{{descricao}}', 'Descrição da cobrança'], ['{{valor}}', 'Valor atual'],
    ['{{valor_original}}', 'Valor original'], ['{{vencimento}}', 'Vencimento'],
    ['{{entidade}}', 'Nome da entidade'], ['{{sigla}}', 'Sigla'],
    ['{{botao_pagar}}', 'BOTÃO Pagar agora'], ['{{link_pagamento}}', 'Link de pagamento (texto)'],

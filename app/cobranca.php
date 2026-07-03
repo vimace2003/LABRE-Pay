@@ -19,17 +19,17 @@ function member_get(int $id): ?array
     return $st->fetch() ?: null;
 }
 
-/** Cria uma cobrança e devolve o registro completo. */
-function charge_criar(int $memberId, int $ano, string $descricao, float $valor, string $vencimento, bool $isentaMulta): array
+/** Cria uma cobrança (anuidade ou avulsa) e devolve o registro completo. */
+function charge_criar(int $memberId, int $ano, string $descricao, float $valor, string $vencimento, bool $isentaMulta, string $tipo = 'anuidade'): array
 {
     $pdo = db();
-    $st = $pdo->prepare('INSERT INTO charges (member_id, ano, descricao, valor, vencimento, isenta_multa, token) VALUES (?,?,?,?,?,?,?)');
+    $st = $pdo->prepare('INSERT INTO charges (member_id, tipo, ano, descricao, valor, vencimento, isenta_multa, token) VALUES (?,?,?,?,?,?,?,?)');
     // token provisório único; o definitivo (HMAC do id) é gravado em seguida
-    $st->execute([$memberId, $ano, $descricao, number_format($valor, 2, '.', ''), $vencimento, $isentaMulta ? 1 : 0, bin2hex(random_bytes(20))]);
+    $st->execute([$memberId, $tipo, $ano, $descricao, number_format($valor, 2, '.', ''), $vencimento, $isentaMulta ? 1 : 0, bin2hex(random_bytes(20))]);
     $id = (int)$pdo->lastInsertId();
     $token = token_para('charge', $id);
     $pdo->prepare('UPDATE charges SET token = ? WHERE id = ?')->execute([$token, $id]);
-    audit('cobranca_criada', 'charge', $id, "membro={$memberId} ano={$ano} valor={$valor}");
+    audit('cobranca_criada', 'charge', $id, "membro={$memberId} tipo={$tipo} ano={$ano} valor={$valor}");
     return charge_get($id);
 }
 
@@ -39,6 +39,10 @@ function charge_criar(int $memberId, int $ano, string $descricao, float $valor, 
  */
 function charge_enviar(array $charge, ?array $member = null, string $tipoEmail = 'cobranca'): array
 {
+    // Avulsas usam o template próprio (com {{descricao}})
+    if (($charge['tipo'] ?? 'anuidade') === 'avulsa' && $tipoEmail === 'cobranca') {
+        $tipoEmail = 'avulsa';
+    }
     $member = $member ?: member_get((int)$charge['member_id']);
     if (!$member) return [false, 'Associado não encontrado.'];
     if (empty($member['email'])) return [false, $member['nome'] . ': sem email cadastrado.'];
@@ -71,7 +75,8 @@ function charge_marcar_paga(array $charge, float $valorPago, ?string $mpPaymentI
     $charge = charge_get((int)$charge['id']);
     $member = member_get((int)$charge['member_id']);
     if ($member && !empty($member['email'])) {
-        mail_enviar_cobranca('confirmacao', $member, $charge);
+        $tipoConfirmacao = ($charge['tipo'] ?? 'anuidade') === 'avulsa' ? 'avulsa_confirmacao' : 'confirmacao';
+        mail_enviar_cobranca($tipoConfirmacao, $member, $charge);
     }
 }
 

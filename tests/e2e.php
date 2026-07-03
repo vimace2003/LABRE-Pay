@@ -364,6 +364,73 @@ check("readmissão cobra proporcional + taxa de retorno (R$ " . number_format($e
     $chR && abs((float)$chR['valor'] - $esperadoR) < 0.005, 'veio ' . ($chR['valor'] ?? 'nada'));
 check('cobrança de readmissão isenta de multa', $chR && (int)$chR['isenta_multa'] === 1);
 
+/* -------------------------------------------------- 7b. cobrança avulsa */
+
+bloco('7b. Cobrança avulsa (serviços extras)');
+
+mailpit_limpar();
+$xavier = pdo()->query("SELECT * FROM members WHERE indicativo='PP5E2E'")->fetch();
+$csrfX = csrf_atual('/associados.php?editar=' . $xavier['id']);
+$vencAvulsa = date('Y-m-d', strtotime('+1 month'));
+http('POST', '/associados.php', [
+    'csrf' => $csrfX, 'acao' => 'cobranca_avulsa', 'id' => (string)$xavier['id'],
+    'descricao' => 'Envio de cartão QSL registrado', 'valor' => '35,00', 'vencimento' => $vencAvulsa,
+]);
+$avulsa = pdo()->query("SELECT * FROM charges WHERE member_id=" . (int)$xavier['id'] . " AND tipo='avulsa' ORDER BY id DESC LIMIT 1")->fetch();
+check('avulsa criada com tipo/valor/vencimento corretos',
+    $avulsa && (float)$avulsa['valor'] === 35.00 && $avulsa['vencimento'] === $vencAvulsa);
+check('avulsa sem multa por padrão (checkbox desmarcado)', $avulsa && (int)$avulsa['isenta_multa'] === 1);
+sleep(1);
+$msgs = mailpit('/api/v1/messages');
+$temAvulsa = false;
+foreach ($msgs['messages'] ?? [] as $m) {
+    if (str_contains($m['Subject'], 'QSL registrado')) $temAvulsa = true;
+}
+check('email da avulsa usa o template próprio (assunto com a descrição)', $temAvulsa);
+
+// Regressão-chave: a avulsa NÃO pode suprimir a anuidade no lote nem mudar a situação
+$anuidadesXavier = (int)pdo()->query("SELECT COUNT(*) FROM charges WHERE member_id=" . (int)$xavier['id'] . " AND tipo='anuidade' AND ano={$anoAtual} AND status<>'cancelada'")->fetchColumn();
+check('anuidade do associado continua existindo ao lado da avulsa', $anuidadesXavier === 1);
+[, $json] = http('POST', '/cobrancas.php?acao=gerar_lote', [
+    'csrf' => csrf_atual('/cobrancas.php'), 'ano' => (string)$anoAtual, 'valor' => '120,00', 'vencimento' => '',
+]);
+$rAv = json_decode($json, true) ?: [];
+check('lote não recria nada por causa da avulsa', ($rAv['processados'] ?? -1) === 0);
+
+// Desconto por antecipação nunca se aplica à avulsa — nem quando ela tem
+// multa habilitada (isenta_multa=0), que é o caso que exercita a trava por tipo
+http('POST', '/associados.php', [
+    'csrf' => $csrfX, 'acao' => 'cobranca_avulsa', 'id' => (string)$xavier['id'],
+    'descricao' => 'Taxa de evento', 'valor' => '50,00', 'vencimento' => $vencAvulsa, 'aplicar_multa' => '1',
+]);
+$avulsaMulta = pdo()->query("SELECT * FROM charges WHERE member_id=" . (int)$xavier['id'] . " AND tipo='avulsa' ORDER BY id DESC LIMIT 1")->fetch();
+check('avulsa com multa habilitada grava isenta_multa=0', $avulsaMulta && (int)$avulsaMulta['isenta_multa'] === 0);
+
+http('POST', '/configuracoes.php', ['csrf' => csrf_atual(), 'desconto_ativo' => '1',
+    'desconto_tipo' => 'percent', 'desconto_valor' => '10',
+    'desconto_dia' => date('d', strtotime('+10 days')), 'desconto_mes' => date('m', strtotime('+10 days')),
+    'lembretes_ativos' => '1', 'backup_ativo' => '1']);
+[, $html] = http('POST', '/consulta.php', ['csrf' => csrf_atual('/consulta.php'), 'termo' => 'PP5E2E', 'site' => '']);
+check('avulsa com multa NÃO ganha o desconto de anuidade (50,00 cheio)', str_contains($html, '50,00') && !str_contains($html, '45,00'));
+http('POST', '/configuracoes.php', ['csrf' => csrf_atual(), 'lembretes_ativos' => '1', 'backup_ativo' => '1']); // desliga o desconto
+
+// Baixa manual → confirmação própria + comprovante com a descrição
+mailpit_limpar();
+http('POST', '/cobrancas.php', ['csrf' => csrf_atual('/cobrancas.php'), 'acao' => 'pagar_manual',
+    'id' => (string)$avulsa['id'], 'valor_pago' => '', 'meio' => 'dinheiro na sede']);
+$avulsaPaga = pdo()->query('SELECT * FROM charges WHERE id=' . (int)$avulsa['id'])->fetch();
+check('baixa manual da avulsa', $avulsaPaga['status'] === 'pago');
+sleep(1);
+$msgs = mailpit('/api/v1/messages');
+$confAvulsa = false;
+foreach ($msgs['messages'] ?? [] as $m) {
+    if (str_contains($m['Subject'], 'Pagamento confirmado') && str_contains($m['Subject'], 'QSL')) $confAvulsa = true;
+}
+check('confirmação da avulsa com template próprio', $confAvulsa);
+[$st, $html] = http('GET', '/comprovante.php?c=' . $avulsa['id'] . '&t=' . $avulsa['token']);
+check('comprovante da avulsa igual ao da anuidade (cupom com a descrição)',
+    $st === 200 && stripos($html, 'QSL registrado') !== false && str_contains($html, 'TOTAL R$'));
+
 /* ----------------------------------------------------- 8. relatórios/CSV */
 
 bloco('8. Relatórios, CSV e telas');

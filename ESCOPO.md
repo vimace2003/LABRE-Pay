@@ -45,6 +45,12 @@ As regras de cobrança seguem o **Estatuto Social da LABRE-SC (2024)**: vencimen
 - Essa primeira cobrança proporcional **não sofre multa nem juros**.
 - O painel também permite ativar uma **taxa de admissão** para novos associados (prevista no Art. 29 do Estatuto), somada à primeira cobrança.
 
+### Cobranças avulsas (serviços extras)
+- Além da anuidade, a diretoria pode cobrar **qualquer serviço extra** de um associado — por exemplo, o envio de cartões QSL registrados.
+- É só abrir o cadastro do associado, descrever o serviço, informar o valor e o vencimento: o sistema gera o link de pagamento e envia por email, como na anuidade.
+- A cada cobrança a diretoria decide se haverá multa e juros em caso de atraso.
+- O associado recebe o **mesmo comprovante** da anuidade, e a cobrança avulsa **não interfere** na situação de adimplência da anuidade.
+
 ### Multa e juros por atraso
 - Se a anuidade vence (por exemplo, em fevereiro) e o associado paga depois (por exemplo, em abril), ele paga o valor original **mais multa e juros pelo tempo de atraso**.
 - Os percentuais de multa e de juros são definidos pela própria diretoria no painel de controle.
