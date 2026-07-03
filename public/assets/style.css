@@ -216,15 +216,40 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
 .grafico-caixa { overflow-x: auto; }
 .grafico-caixa svg { display: block; }
 
-/* ---------- comprovante para impressão ---------- */
-.comprovante h2 { margin-top: 0; }
-.comprovante dl { display: grid; grid-template-columns: max-content 1fr; gap: .35rem 1.2rem; }
-.comprovante dt { font-weight: 700; color: var(--texto-suave); }
-.comprovante dd { margin: 0; }
+/* ---------- comprovante estilo cupom ---------- */
+.cupom {
+  font-family: "Courier New", Courier, monospace;
+  background: #fff;
+  color: #111;
+  max-width: 340px;
+  margin: 0 auto 1.2rem;
+  padding: 1.2rem 1rem;
+  border: 1px solid var(--borda);
+  box-shadow: 0 2px 8px rgba(16, 30, 45, .12);
+  font-size: .95rem;
+  line-height: 1.45;
+}
+.cupom .c-centro { text-align: center; }
+.cupom .c-sigla { font-size: 1.35rem; font-weight: 800; letter-spacing: .06em; }
+.cupom .c-mini { font-size: .8rem; color: #444; }
+.cupom .c-trace { border: none; border-top: 2px dashed #9aa4ad; margin: .7rem 0; }
+.cupom .c-linha { display: flex; justify-content: space-between; gap: .8rem; }
+.cupom .c-linha span:first-child { color: #444; }
+.cupom .c-linha span:last-child { text-align: right; word-break: break-word; }
+.cupom .c-total { font-size: 1.3rem; font-weight: 800; }
+.cupom .c-pago { font-weight: 800; letter-spacing: .35em; margin: .4rem 0; }
+.cupom .c-barcode {
+  height: 46px;
+  margin: .6rem auto .2rem;
+  background: repeating-linear-gradient(90deg,
+    #111 0 2px, transparent 2px 5px, #111 5px 6px, transparent 6px 10px,
+    #111 10px 13px, transparent 13px 15px, #111 15px 16px, transparent 16px 21px);
+}
 @media print {
-  .env-banner, .publica-rodape, .nao-imprimir { display: none !important; }
+  .env-banner, .publica-rodape, .publica-topo, .nao-imprimir, .flash { display: none !important; }
   body { background: #fff; }
   .cartao { border: none; box-shadow: none; }
+  .cupom { border: none; box-shadow: none; max-width: 80mm; padding: 0; }
 }
 
 /* ---------- responsivo ---------- */
