@@ -238,6 +238,13 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
 .cupom .c-linha span:last-child { text-align: right; word-break: break-word; }
 .cupom .c-total { font-size: 1.3rem; font-weight: 800; }
 .cupom .c-pago { font-weight: 800; letter-spacing: .35em; margin: .4rem 0; }
+.cupom .c-morse {
+  margin-top: .5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  white-space: nowrap;
+}
 .cupom .c-barcode {
   height: 46px;
   margin: .6rem auto .2rem;

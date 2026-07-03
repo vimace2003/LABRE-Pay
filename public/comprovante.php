@@ -57,6 +57,9 @@ public_header('Comprovante de pagamento');
   <div class="c-centro c-mini"><?= e($codigo) ?></div>
   <hr class="c-trace">
   <div class="c-centro c-mini">Emitido em <?= e(date('d/m/Y H:i')) ?><br>Obrigado por manter sua associação em dia. 73!</div>
+  <div class="c-centro c-morse" aria-label="TKS 73 em código Morse" title="TKS 73">
+    &#8722; &nbsp; &#8722;&#183;&#8722; &nbsp; &#183;&#183;&#183; &nbsp;&nbsp;&nbsp; &#8722;&#8722;&#183;&#183;&#183; &nbsp; &#183;&#183;&#183;&#8722;&#8722;
+  </div>
 </div>
 <p class="c-centro nao-imprimir" style="text-align:center">
   <button type="button" class="botao botao-primario js-imprimir">Imprimir / salvar PDF</button>
