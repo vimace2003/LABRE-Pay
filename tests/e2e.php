@@ -372,21 +372,17 @@ mailpit_limpar();
 $xavier = pdo()->query("SELECT * FROM members WHERE indicativo='PP5E2E'")->fetch();
 $csrfX = csrf_atual('/associados.php?editar=' . $xavier['id']);
 $vencAvulsa = date('Y-m-d', strtotime('+1 month'));
-http('POST', '/associados.php', [
+[, $html] = http('POST', '/associados.php', [
     'csrf' => $csrfX, 'acao' => 'cobranca_avulsa', 'id' => (string)$xavier['id'],
     'descricao' => 'Envio de cartão QSL registrado', 'valor' => '35,00', 'vencimento' => $vencAvulsa,
 ]);
+// (o email de cobrança em si não sai no CI: o MP fake falha antes do envio,
+// como nas anuidades — o template próprio é coberto pela confirmação abaixo)
+check('criação da avulsa reporta sucesso no painel', str_contains($html, 'Cobrança avulsa de R$ 35,00 gerada'));
 $avulsa = pdo()->query("SELECT * FROM charges WHERE member_id=" . (int)$xavier['id'] . " AND tipo='avulsa' ORDER BY id DESC LIMIT 1")->fetch();
 check('avulsa criada com tipo/valor/vencimento corretos',
     $avulsa && (float)$avulsa['valor'] === 35.00 && $avulsa['vencimento'] === $vencAvulsa);
 check('avulsa sem multa por padrão (checkbox desmarcado)', $avulsa && (int)$avulsa['isenta_multa'] === 1);
-sleep(1);
-$msgs = mailpit('/api/v1/messages');
-$temAvulsa = false;
-foreach ($msgs['messages'] ?? [] as $m) {
-    if (str_contains($m['Subject'], 'QSL registrado')) $temAvulsa = true;
-}
-check('email da avulsa usa o template próprio (assunto com a descrição)', $temAvulsa);
 
 // Regressão-chave: a avulsa NÃO pode suprimir a anuidade no lote nem mudar a situação
 $anuidadesXavier = (int)pdo()->query("SELECT COUNT(*) FROM charges WHERE member_id=" . (int)$xavier['id'] . " AND tipo='anuidade' AND ano={$anoAtual} AND status<>'cancelada'")->fetchColumn();
