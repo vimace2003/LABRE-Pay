@@ -61,6 +61,7 @@ jobs:
             app/install.lock
             app/backups/**
             app/import-*.json
+            public/assets/uploads/**
             ESCOPO.md
             README.md
 

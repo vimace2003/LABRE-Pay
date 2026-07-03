@@ -5,6 +5,7 @@ app/install.lock
 # Gerados em runtime
 app/backups/
 app/import-*.json
+public/assets/uploads/
 
 # Estado do FTP-Deploy (fica no servidor)
 .ftp-deploy-state.json

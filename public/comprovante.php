@@ -24,6 +24,7 @@ $cnpj = setting('entidade_cnpj');
 ?>
 <div class="cupom">
   <div class="c-centro">
+    <?php if (logo_url()): ?><img class="c-logo" src="<?= e(logo_url()) ?>" alt=""><?php endif; ?>
     <div class="c-sigla"><?= e(setting('entidade_nome')) ?></div>
     <div class="c-mini">
       <?= e(setting('entidade_sigla')) ?><?= $cnpj ? ' — CNPJ: ' . e($cnpj) : '' ?><br>

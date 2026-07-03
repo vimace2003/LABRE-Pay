@@ -28,6 +28,45 @@ $campos = [
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
 
+    if (($_POST['acao'] ?? '') === 'logo') {
+        $arq = $_FILES['logo'] ?? null;
+        if (!$arq || $arq['error'] !== UPLOAD_ERR_OK) {
+            flash_set('erro', 'Falha no envio do arquivo.');
+            redirect('configuracoes.php');
+        }
+        if ($arq['size'] > 2 * 1024 * 1024) {
+            flash_set('erro', 'A logo deve ter no máximo 2 MB.');
+            redirect('configuracoes.php');
+        }
+        $info = @getimagesize($arq['tmp_name']);
+        $tipos = ['image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
+        if (!$info || !isset($tipos[$info['mime']])) {
+            flash_set('erro', 'Formato inválido — envie uma imagem PNG, JPG ou WebP.');
+            redirect('configuracoes.php');
+        }
+        $dir = __DIR__ . '/assets/uploads';
+        if (!is_dir($dir)) mkdir($dir, 0755, true);
+        // remove a logo anterior
+        foreach (glob($dir . '/logo-*') ?: [] as $antiga) @unlink($antiga);
+        $nome = 'logo-' . time() . '.' . $tipos[$info['mime']];
+        if (!move_uploaded_file($arq['tmp_name'], $dir . '/' . $nome)) {
+            flash_set('erro', 'Sem permissão para gravar em assets/uploads/.');
+            redirect('configuracoes.php');
+        }
+        setting_save('logo_arquivo', 'assets/uploads/' . $nome);
+        audit('logo_atualizada');
+        flash_set('ok', 'Logotipo atualizado! Ele aparece no painel, na consulta pública, nos relatórios, no comprovante e nos emails.');
+        redirect('configuracoes.php');
+    }
+
+    if (($_POST['acao'] ?? '') === 'logo_remover') {
+        foreach (glob(__DIR__ . '/assets/uploads/logo-*') ?: [] as $antiga) @unlink($antiga);
+        setting_save('logo_arquivo', '');
+        audit('logo_removida');
+        flash_set('ok', 'Logotipo removido — o sistema volta a mostrar apenas a sigla.');
+        redirect('configuracoes.php');
+    }
+
     if (($_POST['acao'] ?? '') === 'testar_email') {
         $ok = mail_enviar($user['email'], $user['nome'], 'Teste de envio — ' . setting('entidade_sigla'),
             '<p>Se você recebeu este email, o SMTP está configurado corretamente.</p>', 'teste');
@@ -210,6 +249,31 @@ page_header('Configurações', 'configuracoes.php', $user);
     <button type="submit" class="botao botao-primario">Salvar configurações</button>
   </div>
 </form>
+
+<div class="cartao form-grid" style="margin-top:1rem">
+  <h2 style="margin-top:0">Logotipo da entidade</h2>
+  <?php $logo = logo_url(); ?>
+  <?php if ($logo): ?>
+    <p><img src="<?= e($logo) ?>" alt="Logotipo atual" style="max-height:80px;max-width:240px"></p>
+  <?php else: ?>
+    <p class="texto-suave">Nenhuma logo enviada — o sistema mostra a sigla da entidade.</p>
+  <?php endif; ?>
+  <form method="post" enctype="multipart/form-data" style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:end">
+    <?= csrf_field() ?>
+    <input type="hidden" name="acao" value="logo">
+    <label>Nova logo (PNG, JPG ou WebP, até 2 MB — ideal: fundo transparente)
+      <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" required>
+    </label>
+    <button type="submit" class="botao botao-primario">Enviar logo</button>
+  </form>
+  <?php if ($logo): ?>
+    <form method="post" data-confirmar="Remover o logotipo?">
+      <?= csrf_field() ?>
+      <input type="hidden" name="acao" value="logo_remover">
+      <button type="submit" class="botao botao-perigo botao-mini">Remover logo</button>
+    </form>
+  <?php endif; ?>
+</div>
 
 <form method="post" style="margin-top:1rem">
   <?= csrf_field() ?>

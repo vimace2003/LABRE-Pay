@@ -64,6 +64,13 @@ h2 { font-size: 1.25rem; margin: 1.2rem 0 .6rem; }
 .brand { font-size: 1.35rem; font-weight: 800; padding: 0 1.2rem .9rem; letter-spacing: .5px; }
 .brand span { color: #7fd1a2; }
 
+/* ---------- logotipo personalizado ---------- */
+.logo-sidebar { max-height: 56px; max-width: 190px; margin: 0 1.2rem .5rem; object-fit: contain; align-self: flex-start; }
+.logo-publica { max-height: 84px; max-width: 260px; object-fit: contain; margin-bottom: .4rem; }
+.rel-identidade { display: flex; align-items: center; gap: .9rem; }
+.logo-relatorio { max-height: 58px; max-width: 170px; object-fit: contain; }
+.cupom .c-logo { max-height: 54px; max-width: 200px; object-fit: contain; margin-bottom: .25rem; filter: grayscale(1) contrast(1.15); }
+
 .sidebar nav { display: flex; flex-direction: column; }
 .sidebar nav a {
   color: #e8eef4;

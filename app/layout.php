@@ -9,6 +9,15 @@ function asset_url(string $arquivo): string
     return 'assets/' . $arquivo . '?v=' . $v;
 }
 
+/** URL da logo personalizada ('' se não houver), com cache-busting. */
+function logo_url(): string
+{
+    $rel = setting('logo_arquivo');
+    if ($rel === '' || !preg_match('#^assets/uploads/logo-[\w.]+$#', $rel)) return '';
+    $fisico = dirname((string)$_SERVER['SCRIPT_FILENAME']) . '/' . $rel;
+    return is_file($fisico) ? $rel . '?v=' . (@filemtime($fisico) ?: 1) : '';
+}
+
 function env_banner(): string
 {
     if (is_production()) return '';
@@ -47,7 +56,10 @@ function page_header(string $titulo, string $ativo, array $user): void
     echo '</head><body class="admin">';
     echo env_banner();
     echo '<div class="layout">';
-    echo '<aside class="sidebar"><div class="brand">' . e($sigla) . '<span>Pay</span></div><nav aria-label="Menu principal">';
+    $logo = logo_url();
+    echo '<aside class="sidebar">';
+    if ($logo) echo '<img class="logo-sidebar" src="' . e($logo) . '" alt="Logo ' . e($sigla) . '">';
+    echo '<div class="brand">' . e($sigla) . '<span>Pay</span></div><nav aria-label="Menu principal">';
     foreach ($menu as $arquivo => $rotulo) {
         $cls = $arquivo === $ativo ? 'ativo' : '';
         echo '<a class="' . $cls . '" href="' . e($arquivo) . '">' . e($rotulo) . '</a>';
@@ -80,9 +92,12 @@ function report_header(string $titulo, string $subtitulo, string $voltarUrl): vo
     echo '<p class="nao-imprimir rel-acoes">';
     echo '<button type="button" class="botao botao-primario js-imprimir">Imprimir / salvar PDF</button> ';
     echo '<a class="botao" href="' . e($voltarUrl) . '">← Voltar</a></p>';
+    $logo = logo_url();
     echo '<header class="rel-topo">';
+    echo '<div class="rel-identidade">';
+    if ($logo) echo '<img class="logo-relatorio" src="' . e($logo) . '" alt="">';
     echo '<div><div class="rel-entidade">' . e(setting('entidade_nome')) . '</div>';
-    echo '<div class="rel-mini">' . e(setting('entidade_sigla')) . ($cnpj ? ' — CNPJ ' . e($cnpj) : '') . '</div></div>';
+    echo '<div class="rel-mini">' . e(setting('entidade_sigla')) . ($cnpj ? ' — CNPJ ' . e($cnpj) : '') . '</div></div></div>';
     echo '<div class="rel-mini">Emitido em ' . e(date('d/m/Y H:i')) . '</div>';
     echo '</header>';
     echo '<h1>' . e($titulo) . '</h1>';
@@ -108,7 +123,10 @@ function public_header(string $titulo): void
     echo '</head><body class="publica">';
     echo env_banner();
     echo '<main class="publica-caixa">';
-    echo '<header class="publica-topo"><div class="brand">' . e($sigla) . '<span>Pay</span></div><p>' . e($nome) . '</p></header>';
+    $logo = logo_url();
+    echo '<header class="publica-topo">';
+    if ($logo) echo '<img class="logo-publica" src="' . e($logo) . '" alt="Logo ' . e($sigla) . '">';
+    echo '<div class="brand">' . e($sigla) . '<span>Pay</span></div><p>' . e($nome) . '</p></header>';
     echo flashes_html();
 }
 
