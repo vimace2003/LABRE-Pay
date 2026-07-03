@@ -19,7 +19,7 @@ public_header('Comprovante de pagamento');
 ?>
 <?php
 $codigo = 'COMP-' . (int)$charge['id'] . '-' . strtoupper(substr($charge['token'], 0, 8));
-$forma = $charge['pago_manual'] ? 'Tesouraria (manual)' : fmt_meio_pagamento($charge['meio_pagamento']) . ' — MercadoPago';
+$forma = $charge['pago_manual'] ? 'Tesouraria (manual)' : fmt_meio_pagamento($charge['meio_pagamento']);
 $cnpj = setting('entidade_cnpj');
 ?>
 <div class="cupom">

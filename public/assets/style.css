@@ -235,7 +235,7 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
 .cupom .c-mini { font-size: .72rem; }
 .cupom .c-trace { border: none; border-top: 1px dashed #555; margin: .45rem 0; }
 .cupom .c-linha { display: flex; justify-content: space-between; gap: .7rem; }
-.cupom .c-linha span:last-child { text-align: right; word-break: break-word; }
+.cupom .c-linha span:last-child { text-align: right; white-space: nowrap; }
 .cupom .c-titulo { font-weight: 800; letter-spacing: .3em; font-size: 1rem; margin: .2rem 0; }
 .cupom .c-item { margin: .15rem 0; }
 .cupom .c-total { font-size: 1.25rem; font-weight: 800; align-items: baseline; }
@@ -243,10 +243,11 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
 .cupom .c-hash { font-size: .68rem; word-break: break-all; }
 .cupom .c-morse {
   margin-top: .4rem;
-  font-size: 1rem;
+  font-size: .78rem;
   font-weight: 700;
-  letter-spacing: .1em;
+  letter-spacing: .03em;
   white-space: nowrap;
+  overflow: hidden;
   text-transform: none;
 }
 .cupom .c-barcode {
