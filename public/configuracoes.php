@@ -11,7 +11,7 @@ $user = require_login();
 /* Campos editáveis (whitelist) */
 $campos = [
     'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato', 'tema',
-    'anuidade_valor', 'venc_dia', 'venc_mes',
+    'anuidade_valor', 'venc_dia', 'venc_mes', 'prazo_venc_meses',
     'multa_percent', 'juros_mes_percent',
     'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
     'taxa_admissao_ativa', 'taxa_admissao_valor', 'taxa_retorno_ativa', 'taxa_retorno_valor',
@@ -177,6 +177,7 @@ page_header('Configurações', 'configuracoes.php', $user);
       <?php campo('anuidade_valor', 'Valor da anuidade (R$)'); ?>
       <?php campo('venc_dia', 'Dia do vencimento', 'number', 'Estatuto LABRE-SC: 31'); ?>
       <?php campo('venc_mes', 'Mês do vencimento', 'number', 'Estatuto LABRE-SC: 1 (janeiro)'); ?>
+      <?php campo('prazo_venc_meses', 'Prazo p/ cobranças fora do ciclo (meses)', 'number', 'Cobrança emitida após o vencimento anual (adesões, lotes atrasados) vence N meses após a emissão — depois disso, multa'); ?>
     </div>
   </div>
 

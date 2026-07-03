@@ -124,6 +124,7 @@ INSERT IGNORE INTO settings (k, v) VALUES
   ('anuidade_valor', '120.00'),
   ('venc_dia', '31'),
   ('venc_mes', '1'),
+  ('prazo_venc_meses', '3'),
   ('multa_percent', '2'),
   ('juros_mes_percent', '1'),
   ('desconto_ativo', '0'),

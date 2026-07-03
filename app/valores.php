@@ -25,6 +25,20 @@ function proximo_vencimento(string $aPartirDe): string
 }
 
 /**
+ * Vencimento adequado para uma cobrança do ano X emitida hoje:
+ * antes do vencimento estatutário → o próprio (ex.: 31/01);
+ * com o ciclo já em andamento → N meses após a emissão (padrão 3, configurável).
+ */
+function vencimento_para_emissao(int $ano, ?string $hoje = null): string
+{
+    $hoje = $hoje ?: date('Y-m-d');
+    $vencAno = vencimento_do_ano($ano);
+    if ($hoje <= $vencAno) return $vencAno;
+    $meses = max(1, (int)setting('prazo_venc_meses', '3'));
+    return date('Y-m-d', strtotime($hoje . ' +' . $meses . ' months'));
+}
+
+/**
  * Pro-rata: meses (arredondados para cima) entre a adesão e o próximo
  * vencimento × (anuidade/12). Retorna ['meses', 'valor', 'vencimento', 'ano'].
  */

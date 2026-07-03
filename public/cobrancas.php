@@ -14,33 +14,53 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
     header('Content-Type: application/json; charset=UTF-8');
     $ano = (int)($_POST['ano'] ?? 0);
     $valor = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
-    $venc = $_POST['vencimento'] ?: vencimento_do_ano($ano);
+    $venc = $_POST['vencimento'] ?: vencimento_para_emissao($ano);
     if ($ano < 2000 || $ano > 2100 || $valor <= 0) {
         echo json_encode(['erro' => 'Ano ou valor inválido.']);
         exit;
     }
 
-    // Contribuintes ativos ainda sem cobrança (não cancelada) do ano
-    $sqlPendentes = "SELECT m.* FROM members m
-        WHERE m.status = 'ativo' AND m.classe = 'contribuinte'
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')";
-    $st = db()->prepare($sqlPendentes . ' ORDER BY m.nome LIMIT 4');
-    $st->execute([$ano]);
+    $vencAno = vencimento_do_ano($ano);
+    $prazoMeses = max(1, (int)setting('prazo_venc_meses', '3'));
+
+    // Contribuintes ativos pendentes de cobrança:
+    //  - adesão dentro do ciclo normal → anuidade cheia do ano (se ainda não tem);
+    //  - adesão DEPOIS do vencimento do ano (meio do ciclo) → proporcional até o
+    //    próximo vencimento (se ainda não tem cobrança de ciclo futuro).
+    $condPendentes = "m.status = 'ativo' AND m.classe = 'contribuinte' AND (
+        ((m.data_adesao IS NULL OR m.data_adesao <= ?)
+          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada'))
+        OR (m.data_adesao > ?
+          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano > ? AND c.status <> 'cancelada'))
+    )";
+    $paramsPendentes = [$vencAno, $ano, $vencAno, $ano];
+
+    $st = db()->prepare("SELECT m.* FROM members m WHERE {$condPendentes} ORDER BY m.nome LIMIT 4");
+    $st->execute($paramsPendentes);
     $membros = $st->fetchAll();
 
     $mensagens = [];
     $processados = 0;
     foreach ($membros as $m) {
-        $charge = charge_criar((int)$m['id'], $ano, "Anuidade {$ano}", $valor, $venc, false);
+        $meioCiclo = $m['data_adesao'] !== null && $m['data_adesao'] > $vencAno;
+        if ($meioCiclo) {
+            $pr = calcular_prorata($m['data_adesao']);
+            $valorPr = round($valor / 12 * $pr['meses'], 2);
+            $vencPr = min(date('Y-m-d', strtotime('+' . $prazoMeses . ' months')), $pr['vencimento']);
+            $charge = charge_criar((int)$m['id'], $pr['ano'],
+                "Anuidade {$pr['ano']} (adesão proporcional — {$pr['meses']} meses)", $valorPr, $vencPr, true);
+            $mensagens[] = $m['nome'] . ': entrou em ' . fmt_data($m['data_adesao']) .
+                ' — cobrado proporcional de ' . fmt_moeda($valorPr) . " ({$pr['meses']} meses, vence " . fmt_data($vencPr) . ').';
+        } else {
+            $charge = charge_criar((int)$m['id'], $ano, "Anuidade {$ano}", $valor, $venc, false);
+        }
         [$okEnv, $msg] = charge_enviar($charge, $m);
         if (!$okEnv) $mensagens[] = $msg;
         $processados++;
     }
 
-    $st = db()->prepare("SELECT COUNT(*) FROM members m
-        WHERE m.status = 'ativo' AND m.classe = 'contribuinte'
-          AND NOT EXISTS (SELECT 1 FROM charges c WHERE c.member_id = m.id AND c.ano = ? AND c.status <> 'cancelada')");
-    $st->execute([$ano]);
+    $st = db()->prepare("SELECT COUNT(*) FROM members m WHERE {$condPendentes}");
+    $st->execute($paramsPendentes);
     $restantes = (int)$st->fetchColumn();
 
     echo json_encode([
@@ -159,13 +179,20 @@ page_header('Cobranças', 'cobrancas.php', $user);
   <p>Cria a cobrança da anuidade para <strong>todos os contribuintes ativos</strong> que ainda não
      têm cobrança do ano escolhido, gera o link de pagamento e envia o email de cada um.
      Quem já tem cobrança no ano não é cobrado de novo.</p>
-  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote">
+  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote"
+        data-venc-dia="<?= (int)setting('venc_dia', '31') ?>" data-venc-mes="<?= (int)setting('venc_mes', '1') ?>"
+        data-prazo-meses="<?= max(1, (int)setting('prazo_venc_meses', '3')) ?>">
     <?= csrf_field() ?>
     <div class="linha-campos">
-      <label>Ano de referência <input type="number" name="ano" value="<?= $anoProximoVenc ?>" min="2000" max="2100" required></label>
+      <label>Ano de referência <input id="lote-ano" type="number" name="ano" value="<?= $anoProximoVenc ?>" min="2000" max="2100" required></label>
       <label>Valor da anuidade <input type="text" name="valor" value="<?= e(number_format((float)setting('anuidade_valor'), 2, ',', '')) ?>" inputmode="decimal" required></label>
-      <label>Vencimento <input type="date" name="vencimento" value="<?= e(vencimento_do_ano($anoProximoVenc)) ?>" required></label>
+      <label>Vencimento
+        <span class="dica">Ciclo já em andamento? O sistema sugere <?= max(1, (int)setting('prazo_venc_meses', '3')) ?> meses após a emissão</span>
+        <input id="lote-venc" type="date" name="vencimento" value="<?= e(vencimento_para_emissao($anoProximoVenc)) ?>" required>
+      </label>
     </div>
+    <p class="texto-suave">Quem entrou <strong>depois do vencimento do ano</strong> (adesão no meio do ciclo)
+       recebe automaticamente a cobrança <strong>proporcional</strong> até o próximo vencimento, sem multa.</p>
     <br>
     <button type="submit" class="botao botao-verde">Gerar e enviar cobranças</button>
     <div style="display:none;margin-top:1rem" class="progresso-envolve">
