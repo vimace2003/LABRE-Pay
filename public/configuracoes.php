@@ -42,8 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('configuracoes.php');
         }
         if (!is_production() && str_starts_with($token, 'APP_USR-')) {
-            flash_set('erro', 'Este ambiente é de TESTES: use as credenciais de teste do MercadoPago (TEST-…), nunca as de produção.');
-            redirect('configuracoes.php');
+            flash_set('ok', 'ATENÇÃO: token APP_USR- salvo em ambiente de testes. Certifique-se de que ele pertence a uma CONTA DE VENDEDOR DE TESTE do MercadoPago — se for de uma conta real, as cobranças geradas serão pagamentos de verdade!');
         }
     }
 
@@ -155,7 +154,7 @@ page_header('Configurações', 'configuracoes.php', $user);
 
   <div class="cartao form-grid">
     <h2 style="margin-top:0">MercadoPago</h2>
-    <p class="texto-suave">Ambiente atual: <strong><?= is_production() ? 'PRODUÇÃO — use credenciais APP_USR-…' : 'TESTES — use credenciais TEST-…' ?></strong>.
+    <p class="texto-suave">Ambiente atual: <strong><?= is_production() ? 'PRODUÇÃO — use as credenciais de produção (APP_USR-…) da conta real da entidade' : 'TESTES — use as credenciais de uma conta de VENDEDOR DE TESTE (crie em "Contas de teste" no painel do MP; o token dela começa com APP_USR-, mas é sandbox)' ?></strong>.
        Obtenha em <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener">mercadopago.com.br/developers</a>.</p>
     <?php campo('mp_access_token', 'Access token', 'password'); ?>
     <?php campo('mp_public_key', 'Public key'); ?>

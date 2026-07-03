@@ -14,12 +14,11 @@ function mp_token(): string
     if ($token === '') {
         throw new MercadoPagoException('Access token do MercadoPago não configurado (Configurações → MercadoPago).');
     }
-    // Trava de ambiente: produção exige APP_USR-, testes exigem TEST-
+    // Trava de ambiente: produção exige APP_USR-. Fora de produção aceitamos
+    // TEST-… e também APP_USR-… porque o fluxo atual recomendado pelo MP usa
+    // as credenciais de uma CONTA DE VENDEDOR DE TESTE, que começam com APP_USR-.
     if (is_production() && str_starts_with($token, 'TEST-')) {
         throw new MercadoPagoException('Token de TESTE configurado em ambiente de PRODUÇÃO. Corrija nas Configurações.');
-    }
-    if (!is_production() && str_starts_with($token, 'APP_USR-')) {
-        throw new MercadoPagoException('Token de PRODUÇÃO configurado em ambiente de TESTES. Use as credenciais de teste (TEST-…).');
     }
     return $token;
 }
