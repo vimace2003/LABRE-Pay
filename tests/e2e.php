@@ -121,12 +121,18 @@ bloco('0. Instalação e acesso');
 
 [, $html] = http('GET', '/install.php');
 if (!str_contains($html, 'já está instalado')) {
-    [, $html] = http('POST', '/install.php', [
-        'env' => 'dev', 'base_url' => BASE, 'mail_override' => DUMMY,
-        'db_host' => 'db', 'db_name' => 'labrepay', 'db_user' => 'labrepay', 'db_pass' => 'labrepay',
-        'adm_nome' => 'Admin E2E', 'adm_email' => ADMIN_EMAIL, 'adm_senha' => ADMIN_SENHA,
-    ]);
-    check('instalador executa e conclui', str_contains($html, 'Instalação concluída'));
+    // O banco pode ainda estar inicializando (primeiro boot do MySQL): insiste.
+    for ($tent = 1; $tent <= 30; $tent++) {
+        [, $html] = http('POST', '/install.php', [
+            'env' => 'dev', 'base_url' => BASE, 'mail_override' => DUMMY,
+            'db_host' => 'db', 'db_name' => 'labrepay', 'db_user' => 'labrepay', 'db_pass' => 'labrepay',
+            'adm_nome' => 'Admin E2E', 'adm_email' => ADMIN_EMAIL, 'adm_senha' => ADMIN_SENHA,
+        ]);
+        if (str_contains($html, 'Instalação concluída') || !str_contains($html, 'Não foi possível conectar')) break;
+        sleep(3);
+    }
+    $erroInstall = preg_match('/flash-erro">([^<]+)/', $html, $m) ? $m[1] : '';
+    check('instalador executa e conclui', str_contains($html, 'Instalação concluída'), $erroInstall);
 } else {
     check('sistema já instalado (lock ativo)', true);
 }

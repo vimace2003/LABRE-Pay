@@ -29,10 +29,12 @@ services:
     volumes:
       - db-data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-plabrepay", "-ulabrepay"]
+      # 127.0.0.1 força TCP: o socket responde cedo demais durante a
+      # inicialização do MySQL 8 e liberaria o app antes da hora
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-ulabrepay", "-plabrepay"]
       interval: 5s
       timeout: 3s
-      retries: 20
+      retries: 30
 
   mailpit:
     image: axllent/mailpit:latest
