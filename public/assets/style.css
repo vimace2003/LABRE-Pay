@@ -229,6 +229,8 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
   font-size: .82rem;
   line-height: 1.35;
   text-transform: uppercase;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
 }
 .cupom .c-centro { text-align: center; }
 .cupom .c-sigla { font-size: 1.15rem; font-weight: 800; letter-spacing: .04em; }
@@ -263,7 +265,13 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
   body { background: #fff; }
   .cartao { border: none; box-shadow: none; }
   .publica-caixa { max-width: none; padding: 0; }
-  .cupom { border: none; box-shadow: none; max-width: 76mm; padding: 0; margin: 0; background: #fff; }
+  /* No PDF o cupom mantém o mesmo visual da tela (fundo creme, borda),
+     centralizado na página; só a sombra sai, que imprime mal. */
+  .cupom {
+    box-shadow: none;
+    max-width: 84mm;
+    margin: 0 auto;
+  }
 }
 
 /* ---------- responsivo ---------- */
