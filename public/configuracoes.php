@@ -10,7 +10,7 @@ $user = require_login();
 
 /* Campos editáveis (whitelist) */
 $campos = [
-    'entidade_nome', 'entidade_sigla', 'entidade_site', 'entidade_email_contato',
+    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato',
     'anuidade_valor', 'venc_dia', 'venc_mes',
     'multa_percent', 'juros_mes_percent',
     'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
@@ -94,6 +94,7 @@ page_header('Configurações', 'configuracoes.php', $user);
     <div class="linha-campos">
       <?php campo('entidade_nome', 'Nome da entidade'); ?>
       <?php campo('entidade_sigla', 'Sigla'); ?>
+      <?php campo('entidade_cnpj', 'CNPJ', 'text', 'Aparece no comprovante de pagamento'); ?>
     </div>
     <div class="linha-campos">
       <?php campo('entidade_site', 'Site'); ?>

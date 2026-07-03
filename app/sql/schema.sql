@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS schema_migrations (
 INSERT IGNORE INTO settings (k, v) VALUES
   ('entidade_nome', 'LABRE Santa Catarina'),
   ('entidade_sigla', 'LABRE-SC'),
+  ('entidade_cnpj', ''),
   ('entidade_site', 'https://www.labre-sc.org.br'),
   ('entidade_email_contato', ''),
   ('anuidade_valor', '120.00'),

@@ -193,6 +193,20 @@ function fmt_data_hora(?string $iso): string
     return $ts ? date('d/m/Y H:i', $ts) : '—';
 }
 
+/** Nome amigável do meio de pagamento retornado pelo MercadoPago. */
+function fmt_meio_pagamento(?string $meio): string
+{
+    return match ($meio) {
+        'account_money' => 'Saldo Mercado Pago',
+        'credit_card' => 'Cartão de crédito',
+        'debit_card' => 'Cartão de débito',
+        'bank_transfer' => 'Pix',
+        'ticket' => 'Boleto',
+        null, '' => 'Online',
+        default => $meio,
+    };
+}
+
 /** Normaliza CPF/CNPJ para apenas dígitos. */
 function so_digitos(string $s): string
 {

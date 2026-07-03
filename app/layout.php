@@ -1,6 +1,14 @@
 <?php
 /** Layout do painel administrativo e das páginas públicas. */
 
+/** URL de asset com cache-busting pela data do arquivo (evita CSS/JS velho em cache). */
+function asset_url(string $arquivo): string
+{
+    $fisico = dirname((string)$_SERVER['SCRIPT_FILENAME']) . '/assets/' . $arquivo;
+    $v = @filemtime($fisico) ?: APP_VERSION;
+    return 'assets/' . $arquivo . '?v=' . $v;
+}
+
 function env_banner(): string
 {
     if (is_production()) return '';
@@ -35,7 +43,7 @@ function page_header(string $titulo, string $ativo, array $user): void
     echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . e($titulo) . ' — ' . e($sigla) . ' Pay</title>';
-    echo '<link rel="stylesheet" href="assets/style.css">';
+    echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
     echo '</head><body class="admin">';
     echo env_banner();
     echo '<div class="layout">';
@@ -51,7 +59,7 @@ function page_header(string $titulo, string $ativo, array $user): void
 
 function page_footer(): void
 {
-    echo '</main></div><script src="assets/app.js"></script></body></html>';
+    echo '</main></div><script src="' . e(asset_url('app.js')) . '"></script></body></html>';
 }
 
 /** Cabeçalho das páginas públicas (consulta, comprovante, privacidade). */
@@ -63,7 +71,7 @@ function public_header(string $titulo): void
     echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<title>' . e($titulo) . ' — ' . e($sigla) . '</title>';
-    echo '<link rel="stylesheet" href="assets/style.css">';
+    echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
     echo '</head><body class="publica">';
     echo env_banner();
     echo '<main class="publica-caixa">';
@@ -74,5 +82,5 @@ function public_header(string $titulo): void
 function public_footer(): void
 {
     echo '<footer class="publica-rodape"><a href="privacidade.php">Política de privacidade</a></footer>';
-    echo '</main><script src="assets/app.js"></script></body></html>';
+    echo '</main><script src="' . e(asset_url('app.js')) . '"></script></body></html>';
 }
