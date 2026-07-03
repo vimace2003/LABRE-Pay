@@ -45,7 +45,6 @@ function page_header(string $titulo, string $ativo, array $user): void
         'cobrancas.php'     => 'Cobranças',
         'situacao.php'      => 'Situação anual',
         'relatorios.php'    => 'Relatórios',
-        'importar.php'      => 'Importar planilha',
         'configuracoes.php' => 'Configurações',
         'usuarios.php'      => 'Usuários',
     ];

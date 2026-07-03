@@ -43,7 +43,7 @@ Legenda: ☐ pendente · ☑ passou · ✗ falhou (anotar o que aconteceu)
 
 | # | Passo | Resultado esperado |
 |---|---|---|
-| 3.1 | Importar planilha → enviar `docs/exemplo-associados.csv` | Prévia mostra 5 linhas; colunas já mapeadas automaticamente |
+| 3.1 | Configurações → Importação de associados → Importar planilha → enviar `docs/exemplo-associados.csv` | Prévia mostra 5 linhas; colunas já mapeadas automaticamente |
 | 3.2 | Confirmar importação | "5 cadastrado(s)"; lista de associados mostra os 5 com acentos corretos |
 | 3.3 | Reimportar o mesmo arquivo COM "atualizar existentes" | "0 cadastrado(s), 5 atualizado(s)" — nada duplicado |
 | 3.4 | Editar o CSV: trocar um email para `invalido@` e reimportar | Aviso de email inválido; linha importada sem email |

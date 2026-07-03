@@ -338,6 +338,14 @@ page_header('Configurações', 'configuracoes.php', $user);
   <button type="submit" class="botao">Enviar email de teste para mim</button>
 </form>
 
+<div class="cartao" style="margin-top:1rem">
+  <h2 style="margin-top:0">Importação de associados</h2>
+  <p>Carga inicial ou atualização em massa do quadro social a partir de uma planilha
+     (XLSX, XLS ou CSV), com mapeamento de colunas e prévia antes de gravar.
+     Tarefa esporádica — o dia a dia é pelo cadastro em <a href="associados.php">Associados</a>.</p>
+  <a class="botao botao-primario" href="importar.php">Importar planilha</a>
+</div>
+
 <?php if (!is_production()): ?>
 <div class="cartao" style="margin-top:1rem;border-color:var(--vermelho)">
   <h2 style="margin-top:0;color:var(--vermelho)">Zona de perigo — só existe em ambiente de testes</h2>

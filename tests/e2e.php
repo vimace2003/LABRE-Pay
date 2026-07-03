@@ -437,6 +437,10 @@ check('relatório imprimível da situação', $st === 200 && str_contains($html,
 check('CSV de associados com BOM e cabeçalho', $st === 200 && str_starts_with($html, "\xEF\xBB\xBF") && str_contains($html, 'Indicativo'));
 [$st, $html] = http('GET', '/relatorios.php');
 check('relatórios com gráficos SVG', $st === 200 && substr_count($html, '<svg') >= 2);
+[, $html] = http('GET', '/dashboard.php');
+check('menu lateral sem "Importar planilha" (movida p/ Configurações)', !str_contains($html, '>Importar planilha</a>'));
+[, $html] = http('GET', '/configuracoes.php');
+check('Configurações têm o acesso à importação', str_contains($html, 'href="importar.php"'));
 [$st] = http('GET', '/migrar.php');
 check('tela de migrações acessível', $st === 200);
 
