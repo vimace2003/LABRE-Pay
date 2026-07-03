@@ -274,6 +274,40 @@ table.tabela { width: 100%; border-collapse: collapse; background: var(--cartao)
   }
 }
 
+/* ---------- relatórios imprimíveis ---------- */
+body.relatorio { background: #fff; }
+.rel-pagina { max-width: 1000px; margin: 0 auto; padding: 1.4rem 1.2rem; }
+.rel-acoes { display: flex; gap: .6rem; }
+.rel-topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1rem;
+  border-bottom: 3px solid var(--azul);
+  padding-bottom: .5rem;
+  margin-bottom: .8rem;
+}
+.rel-entidade { font-size: 1.2rem; font-weight: 800; color: var(--azul); }
+.rel-mini { color: var(--texto-suave); font-size: .88rem; }
+body.relatorio h1 { font-size: 1.35rem; margin: .4rem 0 .2rem; }
+.rel-sub { color: var(--texto-suave); margin: 0 0 1rem; }
+.rel-tabela { width: 100%; border-collapse: collapse; font-size: .92rem; }
+.rel-tabela th, .rel-tabela td { border: 1px solid #c9d2da; padding: .42rem .6rem; text-align: left; vertical-align: top; }
+.rel-tabela th { background: var(--azul); color: #fff; font-size: .82rem; text-transform: uppercase; letter-spacing: .04em; }
+.rel-tabela tbody tr:nth-child(even) { background: #f2f6f9; }
+.rel-tabela tfoot td { font-weight: 700; background: #e8edf2; }
+.rel-tabela .num { text-align: right; white-space: nowrap; }
+.rel-rodape { color: var(--texto-suave); font-size: .82rem; margin-top: 1rem; border-top: 1px solid var(--borda); padding-top: .5rem; }
+@media print {
+  .rel-pagina { max-width: none; padding: 0; }
+  body.relatorio { font-size: 10.5pt; }
+  .rel-tabela { font-size: 9.5pt; }
+  .rel-tabela th { background: var(--azul) !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rel-tabela tbody tr:nth-child(even) { background: #f2f6f9 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rel-tabela thead { display: table-header-group; } /* repete o cabeçalho em cada página */
+  .rel-tabela tr { break-inside: avoid; }
+}
+
 /* ---------- responsivo ---------- */
 @media (max-width: 860px) {
   .layout { flex-direction: column; }

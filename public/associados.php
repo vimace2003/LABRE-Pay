@@ -165,6 +165,7 @@ $mostraForm = $editando || isset($_GET['novo']);
 /* ---------- Listagem ---------- */
 $busca = trim($_GET['busca'] ?? '');
 $filtroStatus = $_GET['status'] ?? 'ativo';
+$modoRelatorio = isset($_GET['csv']) || isset($_GET['imprimir']);
 $sql = 'SELECT * FROM members WHERE 1=1';
 $params = [];
 if ($filtroStatus === 'ativo' || $filtroStatus === 'desligado') {
@@ -176,10 +177,54 @@ if ($busca !== '') {
     $like = '%' . $busca . '%';
     array_push($params, $like, $like, $like, so_digitos($busca) !== '' ? '%' . so_digitos($busca) . '%' : $like);
 }
-$sql .= ' ORDER BY nome LIMIT 500';
+$sql .= ' ORDER BY nome LIMIT ' . ($modoRelatorio ? 10000 : 500);
 $st = db()->prepare($sql);
 $st->execute($params);
 $lista = $st->fetchAll();
+
+$rotuloFiltro = ($filtroStatus === 'todos' ? 'Todos' : ($filtroStatus === 'desligado' ? 'Desligados' : 'Ativos'))
+    . ($busca !== '' ? ' · busca: "' . $busca . '"' : '');
+
+/* ---------- Exportação CSV da lista ---------- */
+if (isset($_GET['csv'])) {
+    audit('associados_exportados', null, null, $rotuloFiltro);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="associados-' . date('Y-m-d') . '.csv"');
+    echo "\xEF\xBB\xBF";
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Nome', 'Indicativo', 'Email', 'CPF/CNPJ', 'Telefone', 'Cidade', 'UF', 'Categoria', 'Classe', 'Situação', 'Data de adesão'], ';');
+    foreach ($lista as $m) {
+        fputcsv($out, [
+            $m['nome'], $m['indicativo'], $m['email'], $m['cpf_cnpj'], $m['telefone'],
+            $m['cidade'], $m['uf'], CATEGORIAS[$m['categoria']] ?? $m['categoria'],
+            CLASSES[$m['classe']] ?? $m['classe'],
+            $m['status'] === 'ativo' ? 'Ativo' : 'Desligado',
+            $m['data_adesao'] ? date('d/m/Y', strtotime($m['data_adesao'])) : '',
+        ], ';');
+    }
+    exit;
+}
+
+/* ---------- Relatório imprimível ---------- */
+if (isset($_GET['imprimir'])) {
+    $voltar = 'associados.php?status=' . urlencode($filtroStatus) . '&busca=' . urlencode($busca);
+    report_header('Lista de associados', 'Filtro: ' . $rotuloFiltro . ' · ' . count($lista) . ' associado(s)', $voltar);
+    echo '<table class="rel-tabela"><thead><tr><th>#</th><th>Nome</th><th>Indicativo</th><th>Email</th><th>Telefone</th><th>Cidade/UF</th><th>Classe</th><th>Situação</th><th>Adesão</th></tr></thead><tbody>';
+    foreach ($lista as $i => $m) {
+        echo '<tr><td class="num">' . ($i + 1) . '</td>';
+        echo '<td>' . e($m['nome']) . '</td>';
+        echo '<td>' . e($m['indicativo'] ?: '—') . '</td>';
+        echo '<td>' . e($m['email'] ?: '—') . '</td>';
+        echo '<td>' . e($m['telefone'] ?: '—') . '</td>';
+        echo '<td>' . e(trim(($m['cidade'] ?? '') . '/' . ($m['uf'] ?? ''), '/') ?: '—') . '</td>';
+        echo '<td>' . e(CLASSES[$m['classe']] ?? $m['classe']) . '</td>';
+        echo '<td>' . ($m['status'] === 'ativo' ? 'Ativo' : 'Desligado') . '</td>';
+        echo '<td>' . e(fmt_data($m['data_adesao'])) . '</td></tr>';
+    }
+    echo '</tbody><tfoot><tr><td colspan="9">Total: ' . count($lista) . ' associado(s)</td></tr></tfoot></table>';
+    report_footer();
+    exit;
+}
 
 page_header('Associados', 'associados.php', $user);
 ?>
@@ -298,6 +343,8 @@ page_header('Associados', 'associados.php', $user);
       <button type="submit" class="botao">Filtrar</button>
     </form>
     <a class="botao botao-primario" href="associados.php?novo=1">+ Novo associado</a>
+    <a class="botao" href="associados.php?status=<?= e(urlencode($filtroStatus)) ?>&busca=<?= e(urlencode($busca)) ?>&csv=1">Exportar CSV</a>
+    <a class="botao" href="associados.php?status=<?= e(urlencode($filtroStatus)) ?>&busca=<?= e(urlencode($busca)) ?>&imprimir=1">Imprimir lista</a>
   </div>
 
   <?php if (!$lista): ?>

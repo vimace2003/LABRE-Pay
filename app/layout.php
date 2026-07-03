@@ -62,6 +62,39 @@ function page_footer(): void
     echo '</main></div><script src="' . e(asset_url('app.js')) . '"></script></body></html>';
 }
 
+/**
+ * Página de relatório imprimível (sem menu): cabeçalho da entidade, título,
+ * subtítulo com os filtros aplicados e data de emissão.
+ */
+function report_header(string $titulo, string $subtitulo, string $voltarUrl): void
+{
+    security_headers();
+    $cnpj = setting('entidade_cnpj');
+    echo '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">';
+    echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
+    echo '<title>' . e($titulo) . ' — ' . e(setting('entidade_sigla', 'LABRE')) . '</title>';
+    echo '<link rel="stylesheet" href="' . e(asset_url('style.css')) . '">';
+    echo '</head><body class="relatorio">';
+    echo env_banner();
+    echo '<div class="rel-pagina">';
+    echo '<p class="nao-imprimir rel-acoes">';
+    echo '<button type="button" class="botao botao-primario js-imprimir">Imprimir / salvar PDF</button> ';
+    echo '<a class="botao" href="' . e($voltarUrl) . '">← Voltar</a></p>';
+    echo '<header class="rel-topo">';
+    echo '<div><div class="rel-entidade">' . e(setting('entidade_nome')) . '</div>';
+    echo '<div class="rel-mini">' . e(setting('entidade_sigla')) . ($cnpj ? ' — CNPJ ' . e($cnpj) : '') . '</div></div>';
+    echo '<div class="rel-mini">Emitido em ' . e(date('d/m/Y H:i')) . '</div>';
+    echo '</header>';
+    echo '<h1>' . e($titulo) . '</h1>';
+    if ($subtitulo !== '') echo '<p class="rel-sub">' . e($subtitulo) . '</p>';
+}
+
+function report_footer(): void
+{
+    echo '<p class="rel-rodape">Gerado pelo sistema de anuidades ' . e(setting('entidade_sigla')) . ' — LABRE-Pay v' . e(APP_VERSION) . '</p>';
+    echo '</div><script src="' . e(asset_url('app.js')) . '"></script></body></html>';
+}
+
 /** Cabeçalho das páginas públicas (consulta, comprovante, privacidade). */
 function public_header(string $titulo): void
 {

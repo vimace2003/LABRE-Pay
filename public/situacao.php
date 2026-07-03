@@ -66,6 +66,31 @@ if (isset($_GET['csv'])) {
     exit;
 }
 
+/* ---------- Relatório imprimível ---------- */
+if (isset($_GET['imprimir'])) {
+    $filtroRotulo = $filtro === 'todos' ? 'Todos' : ($rotulos[$filtro] ?? $filtro);
+    $sub = 'Ano ' . $ano . ' · Filtro: ' . $filtroRotulo . ($busca !== '' ? ' · busca: "' . $busca . '"' : '')
+        . ' — Adimplentes: ' . $totais['adimplente'] . ' · Inadimplentes: ' . $totais['inadimplente']
+        . ' · Isentos/Remidos: ' . $totais['isento'] . ' · Sem cobrança: ' . $totais['sem_cobranca'];
+    $voltar = 'situacao.php?ano=' . $ano . '&f=' . urlencode($filtro) . '&busca=' . urlencode($busca);
+    report_header('Situação anual — ' . $ano, $sub, $voltar);
+    echo '<table class="rel-tabela"><thead><tr><th>#</th><th>Associado</th><th>Indicativo</th><th>Cidade/UF</th><th>Situação ' . $ano . '</th><th>Pago em</th><th class="num">Valor pago (R$)</th></tr></thead><tbody>';
+    foreach ($dados as $i => $d) {
+        echo '<tr><td class="num">' . ($i + 1) . '</td>';
+        echo '<td>' . e($d['nome']) . '</td>';
+        echo '<td>' . e($d['indicativo'] ?: '—') . '</td>';
+        echo '<td>' . e(trim(($d['cidade'] ?? '') . '/' . ($d['uf'] ?? ''), '/') ?: '—') . '</td>';
+        echo '<td>' . e($rotulos[$d['situacao']]) . '</td>';
+        echo '<td>' . e($d['pago_em'] ? fmt_data($d['pago_em']) : '—') . '</td>';
+        echo '<td class="num">' . ($d['pago_em'] ? e(number_format((float)$d['valor_pago'], 2, ',', '.')) : '—') . '</td></tr>';
+    }
+    $somaPago = array_sum(array_map(fn($d) => (float)($d['valor_pago'] ?? 0), $dados));
+    echo '</tbody><tfoot><tr><td colspan="6">Total: ' . count($dados) . ' associado(s)</td>';
+    echo '<td class="num">' . e(number_format($somaPago, 2, ',', '.')) . '</td></tr></tfoot></table>';
+    report_footer();
+    exit;
+}
+
 page_header('Situação anual', 'situacao.php', $user);
 ?>
 
@@ -89,6 +114,7 @@ page_header('Situação anual', 'situacao.php', $user);
     <button type="submit" class="botao">Filtrar</button>
   </form>
   <a class="botao" href="situacao.php?ano=<?= $ano ?>&f=<?= e($filtro) ?>&busca=<?= e(urlencode($busca)) ?>&csv=1">Exportar CSV</a>
+  <a class="botao" href="situacao.php?ano=<?= $ano ?>&f=<?= e($filtro) ?>&busca=<?= e(urlencode($busca)) ?>&imprimir=1">Imprimir lista</a>
 </div>
 
 <?php if (!$dados): ?>

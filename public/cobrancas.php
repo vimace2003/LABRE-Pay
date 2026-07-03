@@ -86,13 +86,14 @@ $anoProximoVenc = (int)date('Y', strtotime(proximo_vencimento(date('Y-m-d'))));
 $ano = (int)($_GET['ano'] ?? $anoAtual);
 $filtro = $_GET['f'] ?? 'todas';
 
+$modoRelatorio = isset($_GET['csv']) || isset($_GET['imprimir']);
 $sql = 'SELECT c.*, m.nome, m.indicativo, m.email FROM charges c JOIN members m ON m.id = c.member_id WHERE c.ano = ?';
 $params = [$ano];
 if (in_array($filtro, ['pendente', 'pago', 'vencida', 'cancelada'], true)) {
     $sql .= ' AND c.status = ?';
     $params[] = $filtro;
 }
-$sql .= ' ORDER BY m.nome LIMIT 1000';
+$sql .= ' ORDER BY m.nome LIMIT ' . ($modoRelatorio ? 10000 : 1000);
 $st = db()->prepare($sql);
 $st->execute($params);
 $lista = $st->fetchAll();
@@ -101,6 +102,54 @@ $anos = db()->query('SELECT DISTINCT ano FROM charges ORDER BY ano DESC')->fetch
 if (!in_array($ano, $anos)) { $anos[] = $ano; rsort($anos); }
 
 $rotulosStatus = ['pendente' => 'Pendente', 'pago' => 'Pago', 'vencida' => 'Vencida', 'cancelada' => 'Cancelada'];
+$rotuloFiltro = 'Ano ' . $ano . ' · ' . ($filtro === 'todas' || !isset($rotulosStatus[$filtro]) ? 'Todas' : $rotulosStatus[$filtro]);
+
+/* ---------- Exportação CSV ---------- */
+if (isset($_GET['csv'])) {
+    audit('cobrancas_exportadas', null, null, $rotuloFiltro);
+    header('Content-Type: text/csv; charset=UTF-8');
+    header('Content-Disposition: attachment; filename="cobrancas-' . $ano . '.csv"');
+    echo "\xEF\xBB\xBF";
+    $out = fopen('php://output', 'w');
+    fputcsv($out, ['Associado', 'Indicativo', 'Descrição', 'Valor', 'Vencimento', 'Status', 'Pago em', 'Valor pago', 'Meio'], ';');
+    foreach ($lista as $c) {
+        fputcsv($out, [
+            $c['nome'], $c['indicativo'], $c['descricao'],
+            number_format((float)$c['valor'], 2, ',', ''),
+            date('d/m/Y', strtotime($c['vencimento'])),
+            $rotulosStatus[$c['status']],
+            $c['pago_em'] ? date('d/m/Y H:i', strtotime($c['pago_em'])) : '',
+            $c['valor_pago'] !== null ? number_format((float)$c['valor_pago'], 2, ',', '') : '',
+            $c['status'] === 'pago' ? ($c['pago_manual'] ? 'Manual (tesouraria)' : fmt_meio_pagamento($c['meio_pagamento'])) : '',
+        ], ';');
+    }
+    exit;
+}
+
+/* ---------- Relatório imprimível ---------- */
+if (isset($_GET['imprimir'])) {
+    $totalValor = array_sum(array_map(fn($c) => $c['status'] !== 'cancelada' ? (float)$c['valor'] : 0, $lista));
+    $totalPago = array_sum(array_map(fn($c) => (float)($c['valor_pago'] ?? 0), $lista));
+    $voltar = 'cobrancas.php?ano=' . $ano . '&f=' . urlencode($filtro);
+    report_header('Cobranças — ' . $ano, 'Filtro: ' . $rotuloFiltro . ' · ' . count($lista) . ' cobrança(s)', $voltar);
+    echo '<table class="rel-tabela"><thead><tr><th>#</th><th>Associado</th><th>Indicativo</th><th>Descrição</th><th class="num">Valor (R$)</th><th>Vencimento</th><th>Status</th><th>Pago em</th><th class="num">Pago (R$)</th></tr></thead><tbody>';
+    foreach ($lista as $i => $c) {
+        echo '<tr><td class="num">' . ($i + 1) . '</td>';
+        echo '<td>' . e($c['nome']) . '</td>';
+        echo '<td>' . e($c['indicativo'] ?: '—') . '</td>';
+        echo '<td>' . e($c['descricao']) . '</td>';
+        echo '<td class="num">' . e(number_format((float)$c['valor'], 2, ',', '.')) . '</td>';
+        echo '<td>' . e(fmt_data($c['vencimento'])) . '</td>';
+        echo '<td>' . e($rotulosStatus[$c['status']]) . ($c['status'] === 'pago' && $c['pago_manual'] ? ' (manual)' : '') . '</td>';
+        echo '<td>' . e($c['pago_em'] ? fmt_data($c['pago_em']) : '—') . '</td>';
+        echo '<td class="num">' . ($c['valor_pago'] !== null ? e(number_format((float)$c['valor_pago'], 2, ',', '.')) : '—') . '</td></tr>';
+    }
+    echo '</tbody><tfoot><tr><td colspan="4">Totais (' . count($lista) . ' cobrança(s), canceladas fora da soma)</td>';
+    echo '<td class="num">' . e(number_format($totalValor, 2, ',', '.')) . '</td><td colspan="3"></td>';
+    echo '<td class="num">' . e(number_format($totalPago, 2, ',', '.')) . '</td></tr></tfoot></table>';
+    report_footer();
+    exit;
+}
 
 page_header('Cobranças', 'cobrancas.php', $user);
 ?>
@@ -140,6 +189,8 @@ page_header('Cobranças', 'cobrancas.php', $user);
     </label>
     <button type="submit" class="botao">Filtrar</button>
   </form>
+  <a class="botao" href="cobrancas.php?ano=<?= $ano ?>&f=<?= e(urlencode($filtro)) ?>&csv=1">Exportar CSV</a>
+  <a class="botao" href="cobrancas.php?ano=<?= $ano ?>&f=<?= e(urlencode($filtro)) ?>&imprimir=1">Imprimir lista</a>
 </div>
 
 <?php if (!$lista): ?>
