@@ -67,6 +67,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('configuracoes.php');
     }
 
+    if (($_POST['acao'] ?? '') === 'zerar_dados') {
+        if (is_production()) {
+            flash_set('erro', 'Zerar dados não é permitido em produção.');
+            redirect('configuracoes.php');
+        }
+        if (strtoupper(trim($_POST['confirmacao'] ?? '')) !== 'ZERAR') {
+            flash_set('erro', 'Para zerar os dados, digite ZERAR no campo de confirmação.');
+            redirect('configuracoes.php');
+        }
+        $pdo = db();
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+        foreach (['charges', 'members', 'email_log', 'login_attempts', 'audit_log'] as $t) {
+            $pdo->exec("TRUNCATE TABLE {$t}");
+        }
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+        audit('dados_de_teste_zerados', null, null, 'associados, cobranças e logs apagados; configurações e usuários preservados');
+        flash_set('ok', 'Dados de teste zerados! Associados, cobranças e logs foram apagados. Configurações e usuários foram mantidos.');
+        redirect('configuracoes.php');
+    }
+
     if (($_POST['acao'] ?? '') === 'testar_email') {
         $ok = mail_enviar($user['email'], $user['nome'], 'Teste de envio — ' . setting('entidade_sigla'),
             '<p>Se você recebeu este email, o SMTP está configurado corretamente.</p>', 'teste');
@@ -311,6 +331,23 @@ page_header('Configurações', 'configuracoes.php', $user);
   <input type="hidden" name="acao" value="testar_email">
   <button type="submit" class="botao">Enviar email de teste para mim</button>
 </form>
+
+<?php if (!is_production()): ?>
+<div class="cartao" style="margin-top:1rem;border-color:var(--vermelho)">
+  <h2 style="margin-top:0;color:var(--vermelho)">Zona de perigo — só existe em ambiente de testes</h2>
+  <p>Apaga <strong>todos os associados, cobranças e registros de log</strong> para recomeçar os testes do zero.
+     As <strong>configurações</strong> (MercadoPago, SMTP, templates, tema, logo) e os <strong>usuários do painel</strong> são preservados.
+     Esta ação não pode ser desfeita.</p>
+  <form method="post" data-confirmar="Apagar TODOS os associados, cobranças e logs deste ambiente de testes? Esta ação não pode ser desfeita." style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:end">
+    <?= csrf_field() ?>
+    <input type="hidden" name="acao" value="zerar_dados">
+    <label>Digite ZERAR para confirmar
+      <input type="text" name="confirmacao" autocomplete="off" placeholder="ZERAR">
+    </label>
+    <button type="submit" class="botao botao-perigo">Zerar dados de teste</button>
+  </form>
+</div>
+<?php endif; ?>
 
 <div class="cartao" style="margin-top:1rem">
   <h2 style="margin-top:0">Informações do ambiente</h2>
