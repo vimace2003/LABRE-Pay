@@ -261,6 +261,15 @@ check('proporcional NÃO é anuidade cheia', $prXavier && (float)$prXavier['valo
 $r2 = json_decode($json, true) ?: [];
 check('rodar o lote de novo não duplica ninguém', ($r2['processados'] ?? -1) === 0 && !empty($r2['terminou']));
 
+// Lote só pode ser do ano vigente — nunca passado, nunca futuro
+foreach ([$anoAtual - 1 => 'passado', $anoAtual + 1 => 'futuro'] as $anoInvalido => $rotulo) {
+    [, $json] = http('POST', '/cobrancas.php?acao=gerar_lote', [
+        'csrf' => $csrfLote, 'ano' => (string)$anoInvalido, 'valor' => '120,00', 'vencimento' => '',
+    ]);
+    $ri = json_decode($json, true) ?: [];
+    check("lote recusa ano {$rotulo} ({$anoInvalido})", !empty($ri['erro']) && str_contains($ri['erro'], 'vigente'));
+}
+
 /* ------------------------------------------------- 4. baixa manual + email */
 
 bloco('4. Baixa manual, comprovante e emails');
@@ -290,18 +299,21 @@ check('comprovante recusa token inválido (404)', $st === 404);
 
 bloco('5. Multa e juros por atraso (vencida há 30 dias)');
 
-$anoPassado = $anoAtual - 1;
+// Cancela a cobrança pendente da Maria e regenera o lote com vencimento
+// retroativo (campo livre do admin) — só ela está sem cobrança do ano.
 $vencAtras = date('Y-m-d', strtotime('-30 days'));
+$chMaria = pdo()->query("SELECT c.* FROM charges c JOIN members m ON m.id=c.member_id WHERE m.indicativo='PP5XYZ' AND c.ano={$anoAtual} AND c.status='pendente'")->fetch();
+http('POST', '/cobrancas.php', ['csrf' => csrf_atual('/cobrancas.php'), 'acao' => 'cancelar', 'id' => (string)$chMaria['id']]);
 $csrfLote = csrf_atual('/cobrancas.php');
 do {
     [, $json] = http('POST', '/cobrancas.php?acao=gerar_lote', [
-        'csrf' => $csrfLote, 'ano' => (string)$anoPassado, 'valor' => '120,00', 'vencimento' => $vencAtras,
+        'csrf' => $csrfLote, 'ano' => (string)$anoAtual, 'valor' => '120,00', 'vencimento' => $vencAtras,
     ]);
     $r = json_decode($json, true) ?: ['erro' => 'resposta inválida'];
 } while (empty($r['erro']) && empty($r['terminou']) && ($r['processados'] ?? 0) > 0);
 
 shell_exec('php /var/www/html/cron.php 2>&1');
-$vencida = pdo()->query("SELECT c.* FROM charges c JOIN members m ON m.id=c.member_id WHERE m.indicativo='PP5XYZ' AND c.ano={$anoPassado}")->fetch();
+$vencida = pdo()->query("SELECT c.* FROM charges c JOIN members m ON m.id=c.member_id WHERE m.indicativo='PP5XYZ' AND c.ano={$anoAtual} AND c.vencimento='{$vencAtras}'")->fetch();
 check('cron marcou a cobrança como vencida', $vencida && $vencida['status'] === 'vencida');
 
 // 120 + multa 2% (2,40) + juros 1% a.m. × 30 dias (1,20) = 123,60

@@ -15,8 +15,13 @@ if (($_GET['acao'] ?? '') === 'gerar_lote' && $_SERVER['REQUEST_METHOD'] === 'PO
     $ano = (int)($_POST['ano'] ?? 0);
     $valor = (float)str_replace(',', '.', (string)($_POST['valor'] ?? '0'));
     $venc = $_POST['vencimento'] ?: vencimento_para_emissao($ano);
-    if ($ano < 2000 || $ano > 2100 || $valor <= 0) {
-        echo json_encode(['erro' => 'Ano ou valor inválido.']);
+    if ($valor <= 0) {
+        echo json_encode(['erro' => 'Valor inválido.']);
+        exit;
+    }
+    // Cobrança em lote é sempre do ano vigente — nunca passado, nunca futuro.
+    if ($ano !== (int)date('Y')) {
+        echo json_encode(['erro' => 'A cobrança em lote só pode ser gerada para o ano vigente (' . date('Y') . ').'], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
@@ -102,7 +107,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['acao'] ?? '') === '') {
 
 /* ---------- Listagem ---------- */
 $anoAtual = (int)date('Y');
-$anoProximoVenc = (int)date('Y', strtotime(proximo_vencimento(date('Y-m-d'))));
 $ano = (int)($_GET['ano'] ?? $anoAtual);
 $filtro = $_GET['f'] ?? 'todas';
 
@@ -179,16 +183,19 @@ page_header('Cobranças', 'cobrancas.php', $user);
   <p>Cria a cobrança da anuidade para <strong>todos os contribuintes ativos</strong> que ainda não
      têm cobrança do ano escolhido, gera o link de pagamento e envia o email de cada um.
      Quem já tem cobrança no ano não é cobrado de novo.</p>
-  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote"
-        data-venc-dia="<?= (int)setting('venc_dia', '31') ?>" data-venc-mes="<?= (int)setting('venc_mes', '1') ?>"
-        data-prazo-meses="<?= max(1, (int)setting('prazo_venc_meses', '3')) ?>">
+  <?php $anoVigente = (int)date('Y'); ?>
+  <form id="form-lote" method="post" action="cobrancas.php?acao=gerar_lote">
     <?= csrf_field() ?>
+    <input type="hidden" name="ano" value="<?= $anoVigente ?>">
     <div class="linha-campos">
-      <label>Ano de referência <input id="lote-ano" type="number" name="ano" value="<?= $anoProximoVenc ?>" min="2000" max="2100" required></label>
+      <label>Ano de referência
+        <span class="dica">Sempre o ano vigente — nunca passado nem futuro</span>
+        <input type="text" value="<?= $anoVigente ?>" disabled>
+      </label>
       <label>Valor da anuidade <input type="text" name="valor" value="<?= e(number_format((float)setting('anuidade_valor'), 2, ',', '')) ?>" inputmode="decimal" required></label>
       <label>Vencimento
         <span class="dica">Ciclo já em andamento? O sistema sugere <?= max(1, (int)setting('prazo_venc_meses', '3')) ?> meses após a emissão</span>
-        <input id="lote-venc" type="date" name="vencimento" value="<?= e(vencimento_para_emissao($anoProximoVenc)) ?>" required>
+        <input id="lote-venc" type="date" name="vencimento" value="<?= e(vencimento_para_emissao($anoVigente)) ?>" required>
       </label>
     </div>
     <p class="texto-suave">Quem entrou <strong>depois do vencimento do ano</strong> (adesão no meio do ciclo)

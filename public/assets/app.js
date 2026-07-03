@@ -140,29 +140,6 @@ document.addEventListener('submit', function (ev) {
   }
 });
 
-// Sugere o vencimento correto quando o ano de referência muda:
-// vencimento estatutário se ainda no futuro; senão, emissão + prazo configurado
-const loteAno = document.getElementById('lote-ano');
-if (loteAno) {
-  loteAno.addEventListener('change', function () {
-    const form = loteAno.closest('form');
-    const venc = document.getElementById('lote-venc');
-    const ano = parseInt(loteAno.value, 10);
-    if (!venc || !ano) return;
-    const dia = parseInt(form.dataset.vencDia, 10) || 31;
-    const mes = parseInt(form.dataset.vencMes, 10) || 1;
-    const prazo = parseInt(form.dataset.prazoMeses, 10) || 3;
-    const estatutario = new Date(ano, mes - 1, Math.min(dia, new Date(ano, mes, 0).getDate()));
-    const hoje = new Date();
-    let alvo = estatutario;
-    if (hoje > estatutario) {
-      alvo = new Date(hoje);
-      alvo.setMonth(alvo.getMonth() + prazo);
-    }
-    venc.value = alvo.getFullYear() + '-' + String(alvo.getMonth() + 1).padStart(2, '0') + '-' + String(alvo.getDate()).padStart(2, '0');
-  });
-}
-
 // Geração de cobranças em lote com progresso (blocos via AJAX para não estourar
 // o tempo de execução de hospedagem compartilhada)
 const loteForm = document.getElementById('form-lote');
