@@ -2,17 +2,21 @@
 
 Sistema de cobrança de anuidades para a LABRE SC (e personalizável para qualquer LABRE estadual).
 PHP puro + MySQL, feito para rodar em hospedagem compartilhada com cPanel, com pagamentos via
-MercadoPago (Checkout Pro: Pix, boleto e cartão).
+**Sicoob** (Pix e boleto registrado) e/ou **Mercado Pago** (Checkout Pro: Pix, boleto e cartão —
+sempre o caminho usado para cartão, já que o Sicoob não oferece API de cartão no portal de
+desenvolvedores).
 
 > Visão não-técnica do projeto: [ESCOPO.md](ESCOPO.md)
 
 ## Funcionalidades
 
 - Importação de associados por planilha (XLSX/XLS/CSV) com mapeamento de colunas e prévia;
-- Cobrança anual em lote com envio por email (link de pagamento do MercadoPago);
+- Cobrança anual em lote com envio por email (link de pagamento);
+- Gateway de pagamento configurável: Sicoob (Pix com QR Code próprio + boleto registrado, quando o
+  associado tem CPF e endereço completos) ou Mercado Pago (Checkout Pro) — cartão sempre via Mercado Pago;
 - Pro-rata para novas adesões e readmissões (com taxas de admissão/retorno opcionais);
 - Desconto por antecipação, multa e juros por atraso — calculados automaticamente por data;
-- Webhook do MercadoPago + reconciliação diária via cron (à prova de falha do webhook);
+- Webhook + reconciliação diária via cron para os dois gateways (à prova de falha do webhook);
 - Consulta pública por CPF/indicativo com pagamento e comprovante;
 - Listas de adimplentes/inadimplentes, relatórios com gráficos e relatório mensal p/ Comissão Fiscal;
 - Lembretes automáticos, backup diário do banco, auditoria completa (LGPD), login seguro.
@@ -37,8 +41,13 @@ sem usuário/senha, e um remetente qualquer (ex.: `teste@labre-sc.org.br`). Todo
 aparece no Mailpit — nada sai para a internet.
 
 MercadoPago em dev/homolog: use as **credenciais de teste** (`TEST-…`) — o sistema recusa
-credenciais de produção fora de produção, e vice-versa. Webhook local: veja
-[docs/simular-webhook.md](docs/simular-webhook.md).
+credenciais de produção fora de produção, e vice-versa.
+
+Sicoob em dev/homolog: cadastre em **Configurações → Sicoob** o Client ID e o token obtidos em
+[developers.sicoob.com.br/portal/sandbox](https://developers.sicoob.com.br/portal/sandbox), com
+ambiente **Sandbox** — o sistema recusa o ambiente "Produção" fora de produção. O sandbox de boleto
+(Cobrança Bancária v3) tem se mostrado inconsistente/com respostas genéricas para vários
+desenvolvedores; o de Pix funciona bem. Webhook local: veja [docs/simular-webhook.md](docs/simular-webhook.md).
 
 ## Instalação no cPanel (produção e homologação)
 
@@ -60,9 +69,17 @@ credenciais de produção fora de produção, e vice-versa. Webhook local: veja
    php /home/SEU_USUARIO/labrepay/public/cron.php
    ```
    (ou use a URL com token mostrada em Configurações, com `curl -s`).
-6. **MercadoPago**: crie uma aplicação em [mercadopago.com.br/developers](https://www.mercadopago.com.br/developers/panel/app),
-   copie o access token para Configurações e cadastre o webhook `https://SEU-SUBDOMINIO/webhook.php`
-   (evento *Pagamentos*); cole a assinatura secreta do webhook nas Configurações.
+6. **Gateway de pagamento**:
+   - **Sicoob** (recomendado — Pix + boleto): crie uma aplicação no
+     [portal de desenvolvedores](https://developers.sicoob.com.br/), solicite as credenciais de
+     produção (client_id + certificado mTLS), converta o certificado e-CNPJ para `.pem`/`.key`
+     e grave fora do `public_html`; cadastre tudo em Configurações → Sicoob, defina o ambiente
+     como "Produção" e o gateway padrão como "Sicoob". Registre o webhook Pix pelo botão da
+     própria tela.
+   - **Mercado Pago** (cartão, e alternativa para Pix/boleto): crie uma aplicação em
+     [mercadopago.com.br/developers](https://www.mercadopago.com.br/developers/panel/app),
+     copie o access token para Configurações e cadastre o webhook `https://SEU-SUBDOMINIO/webhook.php`
+     (evento *Pagamentos*); cole a assinatura secreta do webhook nas Configurações.
 7. **SMTP**: use o email da entidade criado no próprio cPanel (host, porta 465/SSL ou 587/TLS).
 8. Importe a planilha de associados e gere as cobranças do ano.
 
