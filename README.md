@@ -42,6 +42,11 @@ credenciais de produção fora de produção, e vice-versa. Webhook local: veja
 
 ## Instalação no cPanel (produção e homologação)
 
+0. **Versão do PHP**: em cPanel → *MultiPHP Manager*, selecione **PHP 8.4** (versão mais atual
+   disponível na HostGator) para o domínio/subdomínio, especificamente **8.4.27 ou superior**
+   (8.2.35+ e 8.3.36+ também servem, caso 8.4 não esteja disponível na sua hospedagem) — corrige
+   as CVEs 2026-109618, 2026-109619, 2026-111497 e 2026-115560. Extensões necessárias (curl,
+   pdo_mysql, mbstring, zip, openssl, gd, fileinfo, json, intl) já vêm habilitadas por padrão.
 1. **Subdomínio**: crie (ex.: `pay.labre-sc.org.br`) apontando o docroot para a pasta `public/`
    do projeto (ex.: envie o projeto para `~/labrepay/` e aponte o docroot para `~/labrepay/public`).
    Se o cPanel não permitir docroot fora de `public_html`, envie `public/` para o docroot e
