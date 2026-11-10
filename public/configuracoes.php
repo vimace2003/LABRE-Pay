@@ -11,7 +11,7 @@ $user = require_login();
 
 /* Campos editáveis (whitelist) — nunca inclui sicoob_token_cache (uso interno) */
 $campos = [
-    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato', 'tema',
+    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_cidade', 'entidade_site', 'entidade_email_contato', 'tema',
     'anuidade_valor', 'venc_dia', 'venc_mes', 'prazo_venc_meses',
     'multa_percent', 'juros_mes_percent',
     'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
@@ -224,6 +224,7 @@ page_header('Configurações', 'configuracoes.php', $user);
     <div class="linha-campos">
       <?php campo('entidade_site', 'Site'); ?>
       <?php campo('entidade_email_contato', 'Email de contato', 'email'); ?>
+      <?php campo('entidade_cidade', 'Cidade da entidade', 'text', 'Usada no QR Code Pix (campo "cidade do recebedor")'); ?>
     </div>
   </div>
 

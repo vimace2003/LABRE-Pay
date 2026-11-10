@@ -131,6 +131,7 @@ INSERT IGNORE INTO settings (k, v) VALUES
   ('entidade_nome', 'LABRE Santa Catarina'),
   ('entidade_sigla', 'LABRE-SC'),
   ('entidade_cnpj', ''),
+  ('entidade_cidade', ''),
   ('logo_arquivo', ''),
   ('tema', 'azul'),
   ('entidade_site', 'https://www.labre-sc.org.br'),

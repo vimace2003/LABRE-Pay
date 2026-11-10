@@ -176,6 +176,62 @@ function sicoob_txid(array $charge, string $fase): string
 }
 
 /**
+ * Payload Pix (BR Code / EMV QRCPS-MPM — Manual de Padrões para Iniciação do
+ * Pix do Bacen). Não é específico do Sicoob: monta o texto "copia e cola" e o
+ * QR a partir do "location" devolvido pela cob — a API do Sicoob (como a de
+ * vários outros PSPs) não devolve o pixCopiaECola pronto, só o location do
+ * Pix dinâmico, então o payload precisa ser montado aqui.
+ */
+function pix_tlv(string $id, string $valor): string
+{
+    return $id . str_pad((string)strlen($valor), 2, '0', STR_PAD_LEFT) . $valor;
+}
+
+/** CRC16-CCITT (polinômio 0x1021, inicial 0xFFFF) — checksum exigido no fim do payload. */
+function pix_crc16(string $payload): string
+{
+    $crc = 0xFFFF;
+    for ($i = 0, $len = strlen($payload); $i < $len; $i++) {
+        $crc ^= (ord($payload[$i]) << 8);
+        for ($j = 0; $j < 8; $j++) {
+            $crc = ($crc & 0x8000) ? (($crc << 1) ^ 0x1021) & 0xFFFF : ($crc << 1) & 0xFFFF;
+        }
+    }
+    return strtoupper(str_pad(dechex($crc), 4, '0', STR_PAD_LEFT));
+}
+
+/** Maiúsculas, sem acento, só [A-Z0-9 espaço] — exigido pelos campos de nome/cidade do payload. */
+function pix_texto_seguro(string $s, int $max): string
+{
+    $s = @iconv('UTF-8', 'ASCII//TRANSLIT', $s) ?: $s;
+    $s = preg_replace('/[^A-Za-z0-9 ]/', '', $s);
+    $s = trim((string)$s);
+    return $s !== '' ? mb_substr(strtoupper($s), 0, $max) : 'NA';
+}
+
+/** Monta o BR Code (texto "copia e cola") de um Pix dinâmico a partir do location da cob. */
+function pix_montar_payload(string $location, string $txid): string
+{
+    $loc = preg_replace('#^https?://#', '', $location); // o manual do Bacen exige sem o esquema
+    $contaRecebedor = pix_tlv('00', 'br.gov.bcb.pix') . pix_tlv('25', (string)$loc);
+    $nome = pix_texto_seguro(setting('entidade_sigla', 'LABRE'), 25);
+    $cidade = pix_texto_seguro(setting('entidade_cidade', ''), 15);
+    $txidSeguro = mb_substr(preg_replace('/[^A-Za-z0-9]/', '', $txid), 0, 25) ?: '***';
+
+    $payload = pix_tlv('00', '01')                          // Payload Format Indicator
+        . pix_tlv('01', '12')                                // Point of Initiation: 12 = dinâmico
+        . pix_tlv('26', $contaRecebedor)                      // Merchant Account Information
+        . pix_tlv('52', '0000')                               // Merchant Category Code
+        . pix_tlv('53', '986')                                // Transaction Currency: BRL
+        . pix_tlv('58', 'BR')                                 // Country Code
+        . pix_tlv('59', $nome)                                // Merchant Name
+        . pix_tlv('60', $cidade)                              // Merchant City
+        . pix_tlv('62', pix_tlv('05', $txidSeguro));          // Additional Data Field: txid
+
+    return $payload . '6304' . pix_crc16($payload . '6304');
+}
+
+/**
  * Garante que a cobrança tem uma cob Pix válida para o valor devido HOJE.
  * Regenera (novo txid) quando não existe ou quando a fase de valor mudou.
  * Retorna a charge atualizada (com sicoob_txid/pix_copia_cola/pix_location).
@@ -209,8 +265,10 @@ function sicoob_garantir_pix(array $charge, array $member): array
     }
 
     $resp = sicoob_request('pix', 'PUT', '/cob/' . $txid, $payload);
-    $copiaCola = $resp['pixCopiaECola'] ?? null;
     $location = $resp['location'] ?? null;
+    // A API do Sicoob não devolve o pixCopiaECola pronto — só o location do Pix
+    // dinâmico; o BR Code é montado aqui a partir dele (ver pix_montar_payload).
+    $copiaCola = $resp['pixCopiaECola'] ?? ($location ? pix_montar_payload($location, $txid) : null);
     $expiraDateTime = $expiraData . ' 23:59:59';
 
     db()->prepare('UPDATE charges SET sicoob_txid = ?, sicoob_pix_copia_cola = ?, sicoob_pix_location = ?, sicoob_pix_expira = ? WHERE id = ?')
