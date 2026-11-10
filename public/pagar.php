@@ -25,10 +25,12 @@ if ($charge['status'] === 'cancelada') {
 
 $member = member_get((int)$charge['member_id']);
 try {
-    $charge = mp_garantir_preferencia($charge, $member);
-} catch (MercadoPagoException $ex) {
+    $charge = charge_garantir_pagamento($charge, $member);
+} catch (MercadoPagoException|SicoobException $ex) {
     http_response_code(503);
     exit('Não foi possível gerar o link de pagamento agora. Tente novamente em alguns minutos.');
 }
 
-redirect($charge['mp_init_point']);
+// TODO (etapa 4): com gateway Sicoob, mostrar página própria (QR Pix, copia-e-cola,
+// boleto e botão de cartão via MP) em vez de redirecionar.
+redirect($charge['mp_init_point'] ?? (BASE_URL . '/consulta.php'));
