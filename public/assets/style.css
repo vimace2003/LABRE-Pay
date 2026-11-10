@@ -149,6 +149,9 @@ textarea { min-height: 90px; }
 
 .linha-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .9rem; }
 
+.pix-qr { display: flex; justify-content: center; margin: 1rem 0; }
+.pix-qr img, .pix-qr canvas { border-radius: 8px; }
+
 /* ---------- botões ---------- */
 .botao {
   display: inline-flex;

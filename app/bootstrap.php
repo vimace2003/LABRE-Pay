@@ -210,7 +210,7 @@ function tema_atual(): string
     return isset(TEMAS[$t]) ? $t : 'azul';
 }
 
-/** Nome amigável do meio de pagamento retornado pelo MercadoPago. */
+/** Nome amigável do meio de pagamento retornado pelo MercadoPago ou pelo Sicoob. */
 function fmt_meio_pagamento(?string $meio): string
 {
     return match ($meio) {
@@ -219,6 +219,8 @@ function fmt_meio_pagamento(?string $meio): string
         'debit_card' => 'Cartão de débito',
         'bank_transfer' => 'Pix',
         'ticket' => 'Boleto',
+        'pix_sicoob' => 'Pix',
+        'boleto_sicoob' => 'Boleto',
         null, '' => 'Online',
         default => $meio,
     };
