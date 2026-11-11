@@ -135,13 +135,31 @@ function charge_processar_pagamento_mp(array $payment): void
 
     $valorPago = (float)($payment['transaction_amount'] ?? 0);
     $devidoHoje = valor_devido($charge);
-    // Tolerância: o pagamento pode ter sido feito com o valor de uma fase anterior
-    // (ex.: pagou no último dia do desconto e o MP confirmou no dia seguinte).
-    if ($valorPago + 0.01 < min($devidoHoje['valor'], (float)$charge['valor']) * 0.90) {
-        audit('pagamento_valor_divergente', 'charge', (int)$charge['id'], 'recebido=' . $valorPago . ' devido=' . $devidoHoje['valor']);
-    }
+    $valorPago = valor_pago_sanitizado($charge, $devidoHoje, $valorPago);
     $meio = (string)($payment['payment_type_id'] ?? '');
     charge_marcar_paga($charge, $valorPago, (string)$payment['id'], $meio);
+}
+
+/**
+ * Confere o valor relatado pelo gateway contra o devido hoje — nunca confiar
+ * cegamente em dado de API externa (fronteira do sistema). Abaixo do esperado:
+ * só registra para revisão (pode ter sido pago numa fase anterior, ex.: no
+ * último dia do desconto). Muito acima do esperado: é sinal de resposta
+ * inconsistente da API (ex.: sandbox do Sicoob, que devolve dados fictícios
+ * em `/cob`), então descarta o valor relatado e usa o devido calculado aqui.
+ */
+function valor_pago_sanitizado(array $charge, array $devidoHoje, float $valorPago): float
+{
+    $base = min($devidoHoje['valor'], (float)$charge['valor']);
+    if ($valorPago + 0.01 < $base * 0.90) {
+        audit('pagamento_valor_divergente', 'charge', (int)$charge['id'], 'recebido=' . $valorPago . ' devido=' . $devidoHoje['valor']);
+    }
+    $teto = max($devidoHoje['valor'], (float)$charge['valor']) * 1.5 + 10;
+    if ($valorPago > $teto) {
+        audit('pagamento_valor_divergente', 'charge', (int)$charge['id'], 'recebido=' . $valorPago . ' devido=' . $devidoHoje['valor'] . ' (descartado, acima do teto)');
+        return $devidoHoje['valor'];
+    }
+    return $valorPago;
 }
 
 /**
@@ -153,9 +171,7 @@ function charge_processar_pagamento_sicoob(array $charge, string $meio, float $v
     if ($charge['status'] === 'pago' || $charge['status'] === 'cancelada') return;
 
     $devidoHoje = valor_devido($charge);
-    if ($valorPago + 0.01 < min($devidoHoje['valor'], (float)$charge['valor']) * 0.90) {
-        audit('pagamento_valor_divergente', 'charge', (int)$charge['id'], 'recebido=' . $valorPago . ' devido=' . $devidoHoje['valor']);
-    }
+    $valorPago = valor_pago_sanitizado($charge, $devidoHoje, $valorPago);
     charge_marcar_paga($charge, $valorPago, $transacaoId, $meio);
 }
 

@@ -7,6 +7,8 @@ FROM php:8.4.27-apache
 RUN docker-php-ext-install pdo_mysql \
     && a2enmod rewrite headers
 
+COPY php.ini /usr/local/etc/php/conf.d/labrepay.ini
+
 # app/ fica FORA do docroot, como no cPanel (public/ -> /var/www/html, app/ -> /var/www/app)
 # bootstrap.php resolve por caminho relativo ../app
 
