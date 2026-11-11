@@ -89,8 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_GET['acao'] ?? '') === '') {
         flash_set($ok ? 'ok' : 'erro', $msg);
     }
     if ($acao === 'cancelar' && in_array($charge['status'], ['pendente', 'vencida'], true)) {
-        db()->prepare("UPDATE charges SET status = 'cancelada' WHERE id = ?")->execute([$charge['id']]);
-        audit('cobranca_cancelada', 'charge', (int)$charge['id']);
+        charge_cancelar($charge);
         flash_set('ok', 'Cobrança cancelada.');
     }
     if ($acao === 'pagar_manual' && in_array($charge['status'], ['pendente', 'vencida'], true)) {

@@ -42,7 +42,40 @@ if (trim(setting('mp_access_token')) !== '') {
         }
     }
 }
-$log[] = "Pagamentos reconciliados via API: {$reconciliadas}";
+$log[] = "Pagamentos reconciliados via API (MercadoPago): {$reconciliadas}";
+
+/* 2b. Reconciliação com o Sicoob (fallback do webhook Pix; boleto só por aqui) */
+$reconciliadasSicoob = 0;
+if (sicoob_configurado()) {
+    $st = db()->query("SELECT * FROM charges WHERE status IN ('pendente','vencida')
+        AND (sicoob_txid IS NOT NULL OR sicoob_nosso_numero IS NOT NULL) ORDER BY id LIMIT 100");
+    foreach ($st->fetchAll() as $charge) {
+        try {
+            if (!empty($charge['sicoob_txid'])) {
+                $cob = sicoob_consultar_pix($charge['sicoob_txid']);
+                if (($cob['status'] ?? '') === 'CONCLUIDA') {
+                    $pix = $cob['pix'][0] ?? [];
+                    $valorPago = (float)($pix['valor'] ?? $cob['valor']['original'] ?? 0);
+                    charge_processar_pagamento_sicoob($charge, 'pix_sicoob', $valorPago, (string)($pix['endToEndId'] ?? $charge['sicoob_txid']));
+                    $reconciliadasSicoob++;
+                    continue;
+                }
+            }
+            if (!empty($charge['sicoob_nosso_numero'])) {
+                $boleto = sicoob_consultar_boleto($charge['sicoob_nosso_numero']);
+                $situacao = $boleto['situacaoBoleto'] ?? $boleto['status'] ?? '';
+                if (in_array($situacao, ['LIQUIDADO', 'BAIXADO_POR_PAGAMENTO', 'PAGO'], true)) {
+                    $valorPago = (float)($boleto['valorPago'] ?? $boleto['valor'] ?? 0);
+                    charge_processar_pagamento_sicoob($charge, 'boleto_sicoob', $valorPago ?: (float)$charge['valor'], (string)$charge['sicoob_nosso_numero']);
+                    $reconciliadasSicoob++;
+                }
+            }
+        } catch (Throwable $ex) {
+            $log[] = 'Reconciliação Sicoob da cobrança ' . $charge['id'] . ': ' . $ex->getMessage();
+        }
+    }
+}
+$log[] = "Pagamentos reconciliados via API (Sicoob): {$reconciliadasSicoob}";
 
 /* 3. Lembretes (1 por cobrança por dia-alvo; email_log evita repetição) */
 if (setting('lembretes_ativos', '1') === '1') {

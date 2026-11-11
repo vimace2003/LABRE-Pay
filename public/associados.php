@@ -33,6 +33,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'email' => trim($_POST['email'] ?? '') ?: null,
             'cpf_cnpj' => so_digitos($_POST['cpf_cnpj'] ?? '') ?: null,
             'telefone' => trim($_POST['telefone'] ?? '') ?: null,
+            'endereco' => trim($_POST['endereco'] ?? '') ?: null,
+            'numero' => trim($_POST['numero'] ?? '') ?: null,
+            'complemento' => trim($_POST['complemento'] ?? '') ?: null,
+            'bairro' => trim($_POST['bairro'] ?? '') ?: null,
+            'cep' => so_digitos($_POST['cep'] ?? '') ?: null,
             'cidade' => trim($_POST['cidade'] ?? '') ?: null,
             'uf' => strtoupper(trim($_POST['uf'] ?? '')) ?: null,
             'categoria' => array_key_exists($_POST['categoria'] ?? '', CATEGORIAS) ? $_POST['categoria'] : 'efetivo',
@@ -140,7 +145,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($acao === 'anonimizar' && $id) {
         $member = member_get($id);
         if ($member && $member['status'] === 'desligado') {
-            db()->prepare("UPDATE members SET nome = ?, indicativo = NULL, email = NULL, cpf_cnpj = NULL, telefone = NULL, cidade = NULL, uf = NULL, obs = NULL, anonimizado = 1 WHERE id = ?")
+            db()->prepare("UPDATE members SET nome = ?, indicativo = NULL, email = NULL, cpf_cnpj = NULL, telefone = NULL, endereco = NULL, numero = NULL, complemento = NULL, bairro = NULL, cep = NULL, cidade = NULL, uf = NULL, obs = NULL, anonimizado = 1 WHERE id = ?")
                 ->execute(['Associado anonimizado nº ' . $id, $id]);
             audit('associado_anonimizado', 'member', $id, 'LGPD: dados pessoais removidos, histórico financeiro preservado');
             flash_set('ok', 'Dados pessoais removidos (LGPD). O histórico financeiro foi mantido de forma anônima.');
@@ -161,7 +166,7 @@ if (isset($_GET['exportar'])) {
         echo "\xEF\xBB\xBF"; // BOM p/ Excel
         $out = fopen('php://output', 'w');
         fputcsv($out, ['Campo', 'Valor'], ';');
-        foreach (['nome','indicativo','email','cpf_cnpj','telefone','cidade','uf','categoria','classe','status','data_adesao','desligado_em','readmitido_em','obs'] as $campo) {
+        foreach (['nome','indicativo','email','cpf_cnpj','telefone','endereco','numero','complemento','bairro','cep','cidade','uf','categoria','classe','status','data_adesao','desligado_em','readmitido_em','obs'] as $campo) {
             fputcsv($out, [$campo, (string)$m[$campo]], ';');
         }
         fputcsv($out, [], ';');
@@ -212,10 +217,11 @@ if (isset($_GET['csv'])) {
     header('Content-Disposition: attachment; filename="associados-' . date('Y-m-d') . '.csv"');
     echo "\xEF\xBB\xBF";
     $out = fopen('php://output', 'w');
-    fputcsv($out, ['Nome', 'Indicativo', 'Email', 'CPF/CNPJ', 'Telefone', 'Cidade', 'UF', 'Categoria', 'Classe', 'Situação', 'Data de adesão'], ';');
+    fputcsv($out, ['Nome', 'Indicativo', 'Email', 'CPF/CNPJ', 'Telefone', 'Endereço', 'Número', 'Complemento', 'Bairro', 'CEP', 'Cidade', 'UF', 'Categoria', 'Classe', 'Situação', 'Data de adesão'], ';');
     foreach ($lista as $m) {
         fputcsv($out, [
             $m['nome'], $m['indicativo'], $m['email'], $m['cpf_cnpj'], $m['telefone'],
+            $m['endereco'], $m['numero'], $m['complemento'], $m['bairro'], $m['cep'],
             $m['cidade'], $m['uf'], CATEGORIAS[$m['categoria']] ?? $m['categoria'],
             CLASSES[$m['classe']] ?? $m['classe'],
             $m['status'] === 'ativo' ? 'Ativo' : 'Desligado',
@@ -265,10 +271,20 @@ page_header('Associados', 'associados.php', $user);
       <label>Telefone <input type="tel" name="telefone" value="<?= e($m['telefone'] ?? '') ?>"></label>
     </div>
     <div class="linha-campos">
+      <label>Endereço (rua/logradouro) <input type="text" name="endereco" value="<?= e($m['endereco'] ?? '') ?>"></label>
+      <label>Número <input type="text" name="numero" value="<?= e($m['numero'] ?? '') ?>"></label>
+      <label>Complemento <input type="text" name="complemento" value="<?= e($m['complemento'] ?? '') ?>"></label>
+    </div>
+    <div class="linha-campos">
+      <label>Bairro <input type="text" name="bairro" value="<?= e($m['bairro'] ?? '') ?>"></label>
+      <label>CEP <input type="text" name="cep" value="<?= e($m['cep'] ?? '') ?>" placeholder="00000-000"></label>
       <label>Cidade <input type="text" name="cidade" value="<?= e($m['cidade'] ?? '') ?>"></label>
       <label>UF <input type="text" name="uf" maxlength="2" value="<?= e($m['uf'] ?? 'SC') ?>"></label>
+    </div>
+    <div class="linha-campos">
       <label>Data de adesão <input type="date" name="data_adesao" value="<?= e($m['data_adesao'] ?? date('Y-m-d')) ?>"></label>
     </div>
+    <p class="dica">O endereço completo e o CPF/CNPJ são necessários para emitir boleto registrado pelo Sicoob. Sem eles, o associado só poderá pagar por Pix ou cartão.</p>
     <div class="linha-campos">
       <label>Categoria
         <select name="categoria">

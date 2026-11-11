@@ -14,6 +14,7 @@ Legenda: ☐ pendente · ☑ passou · ✗ falhou (anotar o que aconteceu)
 | 0.1 | Configurações → Zona de perigo → digitar `ZERAR` | Associados/cobranças/logs zerados; configurações e seu login preservados |
 | 0.2 | Conferir topo de qualquer tela | Faixa amarela "AMBIENTE DE TESTES (HOMOLOG)" visível |
 | 0.3 | Configurações → MercadoPago | Access token da **conta vendedor de teste** salvo |
+| 0.3b | Configurações → Sicoob → ambiente Sandbox, Client ID e token do [portal](https://developers.sicoob.com.br/portal/sandbox), chave Pix → "Testar conexão" | Mensagem de sucesso ("obteve token com sucesso") |
 | 0.4 | Configurações → clicar "Enviar email de teste para mim" | Email chega no dummy com assunto `[TESTE] Teste de envio` |
 
 ## 1. Acesso e segurança
@@ -80,8 +81,20 @@ Legenda: ☐ pendente · ☑ passou · ✗ falhou (anotar o que aconteceu)
 | 6.1 | Abrir o "Pagar agora" de um email do dummy | Checkout Pro abre com o valor certo e o nome da entidade |
 | 6.2 | Pagar logado como **comprador de teste** (saldo ou cartão `5031 4332 1540 6351`, titular `APRO`, CPF `12345678909`) | Aprovado; redireciona de volta com "Pagamento aprovado!" |
 | 6.3 | Aguardar ~1 minuto | Cobrança vira **Paga** sozinha (webhook); comprovante chega no dummy |
-| 6.4 | Abrir o comprovante | Cupom com logo, itens, TOTAL, `*** PAGO ***`, transação MP, morse TKS 73 |
+| 6.4 | Abrir o comprovante | Cupom com logo, itens, TOTAL, `*** PAGO ***`, nº da transação, morse TKS 73 |
 | 6.5 | Imprimir/salvar PDF do comprovante | PDF idêntico à tela (fundo creme, código de barras), sem cabeçalho do site |
+
+## 6b. Pagamento Sicoob (sandbox)
+
+| # | Passo | Resultado esperado |
+|---|---|---|
+| 6b.1 | Configurações → Gateway padrão → Sicoob; salvar | Gateway passa a ser usado nas novas cobranças |
+| 6b.2 | Abrir o "Pagar agora" de um email do dummy | Página própria (não redireciona) com QR Pix, código copia-e-cola e botão "Copiar código" |
+| 6b.3 | Escanear o QR com o app do banco (ou ler o copia-e-cola) | App reconhece como cobrança Pix válida (o sandbox do Sicoob não liquida pagamentos de verdade) |
+| 6b.4 | Associado com CPF e endereço completos | Bloco de boleto aparece com linha digitável e link "Baixar PDF" |
+| 6b.5 | Associado sem CPF/endereço completos | Só Pix (e cartão, se Mercado Pago configurado); aviso para atualizar o endereço |
+| 6b.6 | Clicar "Pagar com cartão (Mercado Pago)" | Abre o Checkout Pro normalmente (fluxo do item 6) |
+| 6b.7 | Simular o webhook (veja [docs/simular-webhook.md](simular-webhook.md)) ou rodar o cron | Cobrança com cob `CONCLUIDA` no sandbox vira Paga |
 
 ## 7. Multa, juros e desconto
 

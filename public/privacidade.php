@@ -15,12 +15,14 @@ $contato = setting('entidade_email_contato');
 
   <h2>Quais dados tratamos e por quê</h2>
   <p>Tratamos apenas os dados necessários à gestão do quadro social e à cobrança das anuidades:
-     nome, indicativo de radioamador, email, CPF/CNPJ, telefone e cidade. A base legal é a execução
-     do vínculo associativo (Art. 7º, V, da LGPD) previsto no Estatuto Social.</p>
+     nome, indicativo de radioamador, email, CPF/CNPJ, telefone, endereço e cidade. A base legal é a
+     execução do vínculo associativo (Art. 7º, V, da LGPD) previsto no Estatuto Social. O endereço
+     completo e o CPF/CNPJ só são compartilhados com o banco quando o pagamento é feito por boleto
+     registrado — pagamentos por Pix usam só nome e, quando disponível, o CPF/CNPJ.</p>
 
   <h2>Pagamentos</h2>
-  <p>Os pagamentos são processados pelo <strong>MercadoPago</strong>, que atua como operador.
-     Este sistema não armazena dados de cartão de crédito.</p>
+  <p>Os pagamentos são processados pelo <strong>Mercado Pago</strong> e/ou pelo <strong>Sicoob</strong>
+     (Pix e boleto), que atuam como operadores. Este sistema não armazena dados de cartão de crédito.</p>
 
   <h2>Seus direitos</h2>
   <p>Você pode solicitar à diretoria, a qualquer momento: acesso aos seus dados, correção,
