@@ -5,18 +5,22 @@ require __DIR__ . '/../app/bootstrap.php';
 require APP_DIR . '/auth.php';
 require APP_DIR . '/layout.php';
 require APP_DIR . '/mailer.php';
+require APP_DIR . '/sicoob.php';
 
 $user = require_login();
 
-/* Campos editáveis (whitelist) */
+/* Campos editáveis (whitelist) — nunca inclui sicoob_token_cache (uso interno) */
 $campos = [
-    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_site', 'entidade_email_contato', 'tema',
+    'entidade_nome', 'entidade_sigla', 'entidade_cnpj', 'entidade_cidade', 'entidade_site', 'entidade_email_contato', 'tema',
     'anuidade_valor', 'venc_dia', 'venc_mes', 'prazo_venc_meses',
     'multa_percent', 'juros_mes_percent',
     'desconto_ativo', 'desconto_tipo', 'desconto_valor', 'desconto_dia', 'desconto_mes',
     'taxa_admissao_ativa', 'taxa_admissao_valor', 'taxa_retorno_ativa', 'taxa_retorno_valor',
     'meses_exclusao_auto', 'lembretes_ativos', 'lembrete_dias_antes', 'lembrete_dias_depois',
+    'gateway_padrao',
     'mp_access_token', 'mp_public_key', 'mp_webhook_secret',
+    'sicoob_ambiente', 'sicoob_client_id', 'sicoob_sandbox_token', 'sicoob_cert_path', 'sicoob_cert_key_path',
+    'sicoob_chave_pix', 'sicoob_numero_cliente', 'sicoob_conta_corrente', 'sicoob_codigo_modalidade', 'sicoob_webhook_token',
     'smtp_host', 'smtp_porta', 'smtp_usuario', 'smtp_senha', 'smtp_seguranca',
     'smtp_remetente_email', 'smtp_remetente_nome',
     'backup_ativo', 'backup_copias',
@@ -89,6 +93,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         redirect('configuracoes.php');
     }
 
+    if (in_array($_POST['acao'] ?? '', ['sicoob_testar', 'sicoob_webhook'], true)) {
+        // Salva os campos do Sicoob trazidos pelo formulário antes de testar/registrar,
+        // para validar os valores que o usuário acabou de digitar (não só os já salvos).
+        if (($_POST['sicoob_ambiente'] ?? '') === 'producao' && !is_production()) {
+            $_POST['sicoob_ambiente'] = 'sandbox';
+        }
+        foreach (['sicoob_ambiente', 'sicoob_client_id', 'sicoob_sandbox_token', 'sicoob_cert_path', 'sicoob_cert_key_path',
+                  'sicoob_chave_pix', 'sicoob_numero_cliente', 'sicoob_conta_corrente', 'sicoob_codigo_modalidade', 'sicoob_webhook_token'] as $k) {
+            if (array_key_exists($k, $_POST)) setting_save($k, trim((string)$_POST[$k]));
+        }
+        if (($_POST['acao'] ?? '') === 'sicoob_testar') {
+            try {
+                sicoob_token();
+                flash_set('ok', 'Conexão com o Sicoob (' . sicoob_ambiente() . ') obteve token com sucesso.');
+            } catch (SicoobException $ex) {
+                flash_set('erro', 'Falha ao conectar ao Sicoob: ' . $ex->getMessage());
+            }
+        } else {
+            try {
+                $url = BASE_URL . '/webhook-sicoob.php?token=' . setting('sicoob_webhook_token');
+                sicoob_registrar_webhook($url);
+                flash_set('ok', 'Webhook Pix registrado no Sicoob: ' . $url);
+            } catch (SicoobException $ex) {
+                flash_set('erro', 'Falha ao registrar o webhook: ' . $ex->getMessage());
+            }
+        }
+        redirect('configuracoes.php');
+    }
+
     if (($_POST['acao'] ?? '') === 'testar_email') {
         $ok = mail_enviar($user['email'], $user['nome'], 'Teste de envio — ' . setting('entidade_sigla'),
             '<p>Se você recebeu este email, o SMTP está configurado corretamente.</p>', 'teste');
@@ -98,6 +131,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (isset($_POST['tema']) && !isset(TEMAS[$_POST['tema']])) {
         unset($_POST['tema']); // valor desconhecido é ignorado
+    }
+
+    if (isset($_POST['gateway_padrao']) && !in_array($_POST['gateway_padrao'], ['mercadopago', 'sicoob'], true)) {
+        unset($_POST['gateway_padrao']);
+    }
+
+    if (($_POST['sicoob_ambiente'] ?? '') === 'producao' && !is_production()) {
+        flash_set('erro', 'O ambiente "produção" do Sicoob só pode ser usado quando o sistema roda em produção (APP_ENV). Mantido em sandbox.');
+        $_POST['sicoob_ambiente'] = 'sandbox';
+    } elseif (isset($_POST['sicoob_ambiente']) && !in_array($_POST['sicoob_ambiente'], ['sandbox', 'producao'], true)) {
+        $_POST['sicoob_ambiente'] = 'sandbox';
+    }
+    if (($_POST['sicoob_ambiente'] ?? '') === 'producao') {
+        $certPath = trim((string)($_POST['sicoob_cert_path'] ?? ''));
+        $certKeyPath = trim((string)($_POST['sicoob_cert_key_path'] ?? ''));
+        if (!is_readable($certPath) || !is_readable($certKeyPath)) {
+            flash_set('erro', 'Para produção, informe caminhos de certificado (.pem) e chave (.key) legíveis pelo PHP, fora do public_html.');
+            $_POST['sicoob_ambiente'] = 'sandbox';
+        }
     }
 
     $token = trim((string)($_POST['mp_access_token'] ?? ''));
@@ -172,6 +224,7 @@ page_header('Configurações', 'configuracoes.php', $user);
     <div class="linha-campos">
       <?php campo('entidade_site', 'Site'); ?>
       <?php campo('entidade_email_contato', 'Email de contato', 'email'); ?>
+      <?php campo('entidade_cidade', 'Cidade da entidade', 'text', 'Usada no QR Code Pix (campo "cidade do recebedor")'); ?>
     </div>
   </div>
 
@@ -246,12 +299,58 @@ page_header('Configurações', 'configuracoes.php', $user);
   </div>
 
   <div class="cartao form-grid">
+    <h2 style="margin-top:0">Gateway de pagamento</h2>
+    <label>Gateway padrão de cobrança
+      <span class="dica">Cartão de crédito/débito sempre usa o Mercado Pago, mesmo com o Sicoob selecionado abaixo</span>
+      <select name="gateway_padrao">
+        <option value="mercadopago" <?= setting('gateway_padrao', 'mercadopago') === 'mercadopago' ? 'selected' : '' ?>>Mercado Pago</option>
+        <option value="sicoob" <?= setting('gateway_padrao') === 'sicoob' ? 'selected' : '' ?>>Sicoob (Pix + boleto)</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="cartao form-grid">
     <h2 style="margin-top:0">MercadoPago</h2>
     <p class="texto-suave">Ambiente atual: <strong><?= is_production() ? 'PRODUÇÃO — use as credenciais de produção (APP_USR-…) da conta real da entidade' : 'TESTES — use as credenciais de uma conta de VENDEDOR DE TESTE (crie em "Contas de teste" no painel do MP; o token dela começa com APP_USR-, mas é sandbox)' ?></strong>.
        Obtenha em <a href="https://www.mercadopago.com.br/developers/panel/app" target="_blank" rel="noopener">mercadopago.com.br/developers</a>.</p>
     <?php campo('mp_access_token', 'Access token', 'password'); ?>
     <?php campo('mp_public_key', 'Public key'); ?>
     <?php campo('mp_webhook_secret', 'Assinatura secreta do webhook', 'password', 'Configure o webhook no painel do MP apontando para ' . BASE_URL . '/webhook.php e cole aqui a assinatura secreta'); ?>
+  </div>
+
+  <div class="cartao form-grid">
+    <h2 style="margin-top:0">Sicoob (Pix + boleto)</h2>
+    <p class="texto-suave">Ambiente atual do sistema: <strong><?= is_production() ? 'PRODUÇÃO' : 'TESTES' ?></strong>.
+       Em testes, use sempre o ambiente "Sandbox" abaixo. Obtenha as credenciais em
+       <a href="https://developers.sicoob.com.br/portal/sandbox" target="_blank" rel="noopener">developers.sicoob.com.br/portal/sandbox</a>.</p>
+    <div class="linha-campos">
+      <label>Ambiente
+        <select name="sicoob_ambiente">
+          <option value="sandbox" <?= sicoob_ambiente() === 'sandbox' ? 'selected' : '' ?>>Sandbox (testes)</option>
+          <option value="producao" <?= sicoob_ambiente() === 'producao' ? 'selected' : '' ?> <?= is_production() ? '' : 'disabled' ?>>Produção<?= is_production() ? '' : ' (só disponível quando o sistema estiver em produção)' ?></option>
+        </select>
+      </label>
+      <?php campo('sicoob_client_id', 'Client ID'); ?>
+    </div>
+    <div class="linha-campos">
+      <?php campo('sicoob_sandbox_token', 'Token de sandbox', 'password', 'Só usado quando o ambiente acima é Sandbox'); ?>
+      <?php campo('sicoob_chave_pix', 'Chave Pix cadastrada no Sicoob'); ?>
+    </div>
+    <div class="linha-campos">
+      <?php campo('sicoob_numero_cliente', 'Número de cliente (cobrança)', 'text', 'Necessário para emitir boleto — deixe em branco para oferecer só Pix'); ?>
+      <?php campo('sicoob_conta_corrente', 'Conta corrente (cobrança)'); ?>
+      <?php campo('sicoob_codigo_modalidade', 'Código da modalidade', 'number'); ?>
+    </div>
+    <div class="linha-campos">
+      <?php campo('sicoob_cert_path', 'Caminho do certificado (.pem)', 'text', 'Só para produção — grave FORA do public_html, com permissão 600'); ?>
+      <?php campo('sicoob_cert_key_path', 'Caminho da chave privada (.key)', 'text', 'Só para produção — grave FORA do public_html, com permissão 600'); ?>
+    </div>
+    <?php campo('sicoob_webhook_token', 'Token do webhook', 'password', 'Segredo próprio (não é do Sicoob) para validar as chamadas em ' . BASE_URL . '/webhook-sicoob.php'); ?>
+    <p class="texto-suave">URL do webhook Pix a registrar no Sicoob: <code><?= e(BASE_URL . '/webhook-sicoob.php?token=' . setting('sicoob_webhook_token')) ?></code></p>
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap">
+      <button type="submit" formaction="configuracoes.php" name="acao" value="sicoob_testar" class="botao">Testar conexão</button>
+      <button type="submit" formaction="configuracoes.php" name="acao" value="sicoob_webhook" class="botao">Registrar webhook Pix</button>
+    </div>
   </div>
 
   <div class="cartao form-grid">

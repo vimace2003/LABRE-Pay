@@ -130,6 +130,49 @@ document.addEventListener('click', function (ev) {
   }
 });
 
+// QR Pix da página de pagamento (pagar.php) — gerado localmente a partir do
+// copia-e-cola, sem terceiros (vendored assets/qrcode.js, MIT, sem dependências)
+(function () {
+  const alvo = document.getElementById('pix-qrcode');
+  if (alvo && window.QRCode && alvo.dataset.copiaCola) {
+    new QRCode(alvo, { text: alvo.dataset.copiaCola, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+  }
+})();
+
+// Botão "Copiar código" do Pix
+document.addEventListener('click', function (ev) {
+  const btn = ev.target.closest('.js-copiar-pix');
+  if (!btn) return;
+  const alvo = document.getElementById(btn.dataset.alvo);
+  if (!alvo) return;
+  alvo.select();
+  const original = btn.textContent;
+  const marcarCopiado = () => { btn.textContent = 'Copiado!'; setTimeout(() => { btn.textContent = original; }, 2000); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(alvo.value).then(marcarCopiado).catch(() => document.execCommand('copy') && marcarCopiado());
+  } else {
+    document.execCommand('copy');
+    marcarCopiado();
+  }
+});
+
+// Status de pagamento da página de pagamento Sicoob: consulta a cada 6s até confirmar
+const painelStatus = document.getElementById('pagar-status');
+if (painelStatus) {
+  const carga = painelStatus.dataset.charge;
+  const token = painelStatus.dataset.token;
+  const consultarStatus = async function () {
+    try {
+      const resp = await fetch('pagar-status.php?c=' + encodeURIComponent(carga) + '&t=' + encodeURIComponent(token));
+      const r = await resp.json();
+      if (r.status === 'pago' && r.comprovante_url) {
+        window.location.href = r.comprovante_url;
+      }
+    } catch (e) { /* tenta de novo no próximo ciclo */ }
+  };
+  setInterval(consultarStatus, 6000);
+}
+
 // Confirmação explícita para ações destrutivas
 document.addEventListener('submit', function (ev) {
   const form = ev.target;

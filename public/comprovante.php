@@ -55,7 +55,7 @@ $cnpj = setting('entidade_cnpj');
   <hr class="c-trace">
   <div>Associado: <?= e($member['nome']) ?><?= $member['indicativo'] ? ' (' . e($member['indicativo']) . ')' : '' ?></div>
   <?php if ($charge['mp_payment_id']): ?>
-    <div>Transação MP: <?= e($charge['mp_payment_id']) ?></div>
+    <div>Transação: <?= e($charge['mp_payment_id']) ?></div>
   <?php endif; ?>
   <hr class="c-trace">
   <div class="c-hash">SHA: <?= e($charge['token']) ?></div>

@@ -9,7 +9,11 @@
  * loga, zera dados, importa planilha, gera lotes, valida pro-rata, multa,
  * consulta pública, comprovante, cron, backup e rate-limit.
  * Emails são conferidos no Mailpit. MercadoPago usa token fake — as chamadas
- * falham de propósito e o teste confirma que o sistema degrada bem.
+ * falham de propósito e o teste confirma que o sistema degrada bem. O
+ * despacho de gateway (MercadoPago/Sicoob) é conferido sem rede real (ver
+ * php_eval_remoto) — pagar.php com o Sicoob de verdade foi validado à mão
+ * contra o sandbox oficial, fora desta suíte, para não depender de uma rede
+ * externa sabidamente instável (ver docs/roteiro-de-testes.md, item 6b).
  *
  * Sai com código 0 se tudo passou; 1 se houve falha (para uso em CI).
  */
@@ -102,6 +106,20 @@ function mailpit_limpar(): void
     curl_setopt_array($ch, [CURLOPT_CUSTOMREQUEST => 'DELETE', CURLOPT_RETURNTRANSFER => true]);
     curl_exec($ch);
     curl_close($ch);
+}
+
+/**
+ * Executa um trecho de PHP dentro do container, sem passar pela rede — para
+ * verificar funções puras (ex.: charge_gateway, member_pode_boleto) sem o
+ * risco de flakiness de uma chamada real ao sandbox do Sicoob/MercadoPago.
+ */
+function php_eval_remoto(string $codigo): string
+{
+    $arq = tempnam(sys_get_temp_dir(), 'e2e-eval-') . '.php';
+    file_put_contents($arq, "<?php\nchdir('/var/www/html');\nrequire '/var/www/app/bootstrap.php';\nrequire APP_DIR . '/cobranca.php';\n" . $codigo);
+    $saida = trim((string)shell_exec('php ' . $arq . ' 2>&1'));
+    unlink($arq);
+    return $saida;
 }
 
 /** Replica a regra de pro-rata para conferir o valor de forma independente. */
@@ -427,6 +445,40 @@ check('confirmação da avulsa com template próprio', $confAvulsa);
 [$st, $html] = http('GET', '/comprovante.php?c=' . $avulsa['id'] . '&t=' . $avulsa['token']);
 check('comprovante da avulsa igual ao da anuidade (cupom com a descrição)',
     $st === 200 && stripos($html, 'QSL registrado') !== false && str_contains($html, 'TOTAL R$'));
+
+/* --------------------------------------------------- 7c. gateway Sicoob */
+
+bloco('7c. Gateway Sicoob (sem credenciais reais — checagens sem rede)');
+
+// Sem credenciais do Sicoob: charge_gateway() cai para o MercadoPago mesmo
+// com gateway_padrao=sicoob — o mesmo fallback automático que protege contra
+// uma configuração incompleta em produção.
+http('POST', '/configuracoes.php', ['csrf' => csrf_atual(), 'gateway_padrao' => 'sicoob',
+    'sicoob_ambiente' => 'sandbox', 'sicoob_client_id' => '', 'sicoob_sandbox_token' => '', 'sicoob_chave_pix' => '']);
+check('gateway_padrao=sicoob sem credenciais cai para mercadopago (fallback automático)',
+    php_eval_remoto('echo charge_gateway();') === 'mercadopago');
+
+// Com credenciais (mesmo de teste, sem precisar validar no sandbox real),
+// charge_gateway() passa a usar o Sicoob.
+http('POST', '/configuracoes.php', ['csrf' => csrf_atual(),
+    'sicoob_client_id' => 'e2e-fake-client', 'sicoob_sandbox_token' => 'e2e-fake-token',
+    'sicoob_chave_pix' => 'e2e-fake@sicoob.com.br']);
+check('gateway_padrao=sicoob configurado passa a usar o Sicoob',
+    php_eval_remoto('echo charge_gateway();') === 'sicoob');
+
+// member_pode_boleto(): exige CPF/CNPJ e endereço completos (boleto registrado do Sicoob)
+check('member_pode_boleto() aceita associado com CPF e endereço completos',
+    php_eval_remoto('var_export(member_pode_boleto(["cpf_cnpj"=>"11144477735","endereco"=>"Rua X","bairro"=>"Centro","cidade"=>"Floripa","cep"=>"88000000","uf"=>"SC"]));') === 'true');
+check('member_pode_boleto() recusa associado sem endereço',
+    php_eval_remoto('var_export(member_pode_boleto(["cpf_cnpj"=>"11144477735"]));') === 'false');
+check('member_pode_boleto() recusa CPF/CNPJ com tamanho inválido',
+    php_eval_remoto('var_export(member_pode_boleto(["cpf_cnpj"=>"123","endereco"=>"Rua X","bairro"=>"Centro","cidade"=>"Floripa","cep"=>"88000000","uf"=>"SC"]));') === 'false');
+
+// Volta ao Mercado Pago (não afeta os blocos seguintes, que não dependem do gateway)
+http('POST', '/configuracoes.php', ['csrf' => csrf_atual(), 'gateway_padrao' => 'mercadopago',
+    'sicoob_client_id' => '', 'sicoob_sandbox_token' => '', 'sicoob_chave_pix' => '']);
+check('gateway restaurado para mercadopago ao final do bloco',
+    php_eval_remoto('echo charge_gateway();') === 'mercadopago');
 
 /* ----------------------------------------------------- 8. relatórios/CSV */
 

@@ -12,8 +12,8 @@ As regras de cobrança seguem o **Estatuto Social da LABRE-SC (2024)**: vencimen
 
 1. A diretoria cadastra os associados no sistema — pode importar de uma só vez a planilha (Excel) que já existe hoje, sem precisar digitar um por um.
 2. Todo ano, o sistema gera a cobrança da anuidade de todos os associados ativos e envia por email.
-3. O email traz um link de pagamento do MercadoPago, onde o associado escolhe como quer pagar: **Pix, boleto ou cartão**.
-4. Quando o associado paga, o sistema é avisado automaticamente pelo MercadoPago e marca a cobrança como quitada — sem ninguém precisar conferir extrato.
+3. O email traz um link de pagamento onde o associado escolhe como quer pagar: **Pix, boleto ou cartão** (Pix e boleto pelo Sicoob da própria entidade; cartão sempre pelo Mercado Pago).
+4. Quando o associado paga, o sistema é avisado automaticamente e marca a cobrança como quitada — sem ninguém precisar conferir extrato.
 5. A diretoria acompanha tudo em um painel: quantos pagaram, quantos estão em atraso, valores arrecadados.
 
 ## O que o sistema faz
@@ -78,12 +78,12 @@ Tudo o que identifica a entidade é configurável pelo painel, sem mexer em prog
 - Taxa de admissão e taxa de retorno (ligar/desligar e valor);
 - Prazo de inadimplência para o aviso de exclusão automática;
 - Textos dos emails de cobrança, lembrete e confirmação;
-- Contas do MercadoPago e do email remetente.
+- Contas do Sicoob/MercadoPago e do email remetente.
 
 ### Segurança
 - O painel administrativo só é acessado com usuário e senha, com bloqueio após várias tentativas erradas.
 - Cada diretor/tesoureiro pode ter seu próprio usuário.
-- Os pagamentos acontecem no ambiente do MercadoPago — o sistema **não guarda dados de cartão** de ninguém.
+- Os pagamentos acontecem no ambiente do Sicoob ou do MercadoPago — o sistema **não guarda dados de cartão** de ninguém.
 
 ## O que o sistema NÃO faz (fora do escopo)
 
@@ -95,7 +95,7 @@ Tudo o que identifica a entidade é configurável pelo painel, sem mexer em prog
 ## O que é preciso para colocar no ar
 
 - Uma **hospedagem de site comum com cPanel** (a maioria das hospedagens brasileiras serve).
-- Uma **conta no MercadoPago** da entidade (gratuita; o MercadoPago cobra apenas a taxa por transação recebida).
+- Uma **conta cooperada no Sicoob** (para Pix e boleto) e/ou uma **conta no MercadoPago** (para cartão) — ambas cobram apenas uma taxa por transação recebida.
 - Um **email da entidade** para ser o remetente das cobranças.
 - A **planilha atual de associados** para a carga inicial.
 
@@ -105,4 +105,4 @@ Tudo o que identifica a entidade é configurável pelo painel, sem mexer em prog
 |---|---|
 | Diretoria / Tesouraria | Entra com senha, gerencia associados, gera cobranças e acompanha pagamentos |
 | Associado | Recebe o email e paga pelo link; pode consultar sua situação pelo CPF ou indicativo |
-| MercadoPago | Processa os pagamentos e avisa o sistema automaticamente quando alguém paga |
+| Sicoob / MercadoPago | Processam os pagamentos (Pix/boleto e cartão, respectivamente) e avisam o sistema automaticamente quando alguém paga |

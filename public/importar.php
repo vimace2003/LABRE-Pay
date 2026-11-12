@@ -14,6 +14,11 @@ const CAMPOS_IMPORT = [
     'email' => 'Email',
     'cpf_cnpj' => 'CPF/CNPJ',
     'telefone' => 'Telefone',
+    'endereco' => 'Endereço',
+    'numero' => 'Número',
+    'complemento' => 'Complemento',
+    'bairro' => 'Bairro',
+    'cep' => 'CEP',
     'cidade' => 'Cidade',
     'uf' => 'UF',
     'data_adesao' => 'Data de adesão',
@@ -34,7 +39,7 @@ function ler_planilha(string $tmp, string $nomeOriginal): array
         $linhas = [];
         foreach (preg_split('/\r\n|\r|\n/', $conteudo) as $l) {
             if (trim($l) === '') continue;
-            $linhas[] = str_getcsv($l, $sep);
+            $linhas[] = str_getcsv($l, $sep, '"', '\\');
         }
         return $linhas;
     }
@@ -121,6 +126,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if (isset($reg['indicativo'])) $reg['indicativo'] = strtoupper($reg['indicativo']);
                     if (isset($reg['data_adesao'])) $reg['data_adesao'] = normalizar_data($reg['data_adesao']);
                     if (isset($reg['uf'])) $reg['uf'] = strtoupper(substr($reg['uf'], 0, 2)) ?: null;
+                    if (isset($reg['cep'])) $reg['cep'] = so_digitos($reg['cep']);
 
                     // Dedupe: indicativo > cpf > email
                     $existente = null;
@@ -200,6 +206,8 @@ page_header('Importar planilha', 'configuracoes.php', $user);
                     $palpite = '';
                     foreach (['nome' => 'nome', 'indicativo' => 'indicativo', 'call' => 'indicativo', 'mail' => 'email',
                               'cpf' => 'cpf_cnpj', 'cnpj' => 'cpf_cnpj', 'fone' => 'telefone', 'telefone' => 'telefone', 'celular' => 'telefone',
+                              'bairro' => 'bairro', 'cep' => 'cep', 'complemento' => 'complemento', 'numero' => 'numero', 'número' => 'numero',
+                              'endereco' => 'endereco', 'endereço' => 'endereco', 'rua' => 'endereco', 'logradouro' => 'endereco',
                               'cidade' => 'cidade', 'municip' => 'cidade', 'uf' => 'uf', 'estado' => 'uf',
                               'ades' => 'data_adesao', 'entrada' => 'data_adesao', 'obs' => 'obs'] as $chave => $campo) {
                         if (str_contains($t, $chave)) { $palpite = $campo; break; }
