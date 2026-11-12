@@ -39,7 +39,7 @@ function ler_planilha(string $tmp, string $nomeOriginal): array
         $linhas = [];
         foreach (preg_split('/\r\n|\r|\n/', $conteudo) as $l) {
             if (trim($l) === '') continue;
-            $linhas[] = str_getcsv($l, $sep);
+            $linhas[] = str_getcsv($l, $sep, '"', '\\');
         }
         return $linhas;
     }
